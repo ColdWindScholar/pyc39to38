@@ -1,0 +1,15 @@
+# IDEs
+.idea/
+.vscode/
+
+# macOS
+**/.*DS_Store
+
+# Cygwin
+**/*.stackdump
+
+# Python
+**/__pycache__/
+**/*.pyasm
+**/*.pyc
+test.py
