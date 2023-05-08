@@ -15,6 +15,7 @@ from xdis.cross_dis import op_size
 from .utils import Instruction
 from .patch import InPlacePatcher
 from .rules import RULE_APPLIER
+from . import PY38_VER
 
 
 def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RULE_APPLIER) -> Assembler:
@@ -28,7 +29,7 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
     :return: output Assembler, None if failed
     """
 
-    new_asm = Assembler(asm.python_version, is_pypy)
+    new_asm = Assembler(PY38_VER, is_pypy)
     new_asm.size = asm.size
 
     for code_idx, old_code in enumerate(asm.codes):

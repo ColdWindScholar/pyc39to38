@@ -15,8 +15,8 @@ $ python -m pyc39to38 path/to/file.pyc your/output.pyc
 
 ## Why?
 
-Many decompilers like [uncompyle6][uncompyle6] and [pycdc][pycdc] don't completely support Python 3.9 yet.\
-This tool can be used to convert the bytecode to 3.8 and then you can decompile it.
+Decompiler like [uncompyle6][uncompyle6] doesn't support Python 3.9 yet.\
+This tool can be used to convert the bytecode to 3.8 then you can decompile it.
 
 ## How it works
 
@@ -38,4 +38,3 @@ Please see the [LICENSE](LICENSE.txt) file for more information.
 [xasm]: https://github.com/rocky/python-xasm.git
 
 [uncompyle6]: https://github.com/rocky/python-uncompyle6.git
-[pycdc]: https://github.com/zrax/pycdc.git

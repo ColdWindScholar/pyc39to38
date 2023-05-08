@@ -25,6 +25,7 @@ from .rules import RULE_APPLIER
 from . import (
     FILE_ENCODING,
     PYASM_SUFFIX,
+    PY38_VER,
     PY39_VER
 )
 
@@ -78,7 +79,7 @@ def reasm_file(input_path: str, output_path: str, rule_applier: RULE_APPLIER) ->
 
     try:
         with open(output_path, 'wb') as fp:
-            write_pycfile(fp, new_asm.code_list, timestamp, version)
+            write_pycfile(fp, new_asm.code_list, timestamp, PY38_VER)
             # write_pycfile writes a zero, in our case it's better to write the real size
             fp.seek(SOURCE_SIZE_OFF)
             fp.write(pack(SOURCE_SIZE_FMT, new_asm.size))
