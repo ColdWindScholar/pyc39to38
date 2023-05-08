@@ -7,7 +7,8 @@ from types import ModuleType
 
 from xasm.assemble import (
     Assembler,
-    create_code
+    create_code,
+    decode_lineno_tab
 )
 from xdis.cross_dis import op_size
 
@@ -35,7 +36,14 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
         new_label = copy(asm.label[code_idx])
         old_backpatch_inst = asm.backpatch[code_idx]
         new_backpatch_inst: set[Instruction] = set()
-        new_code.co_lnotab = copy(old_code.co_lnotab)
+        if isinstance(old_code.co_lnotab, dict):
+            # co_lnotab is already decoded
+            new_code.co_lnotab = copy(old_code.co_lnotab)
+        else:
+            # co_lnotab is bytes, decode it
+            new_code.co_lnotab = decode_lineno_tab(
+                old_code.co_lnotab, old_code.co_firstlineno
+            )
         new_insts = []
         for old_inst in old_code.instructions:
             new_inst = copy(old_inst)
