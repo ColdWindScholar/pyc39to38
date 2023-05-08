@@ -138,7 +138,7 @@ class InPlacePatcher:
         :param shift_line_no: whether to shift the line number at the offset if any (default: False)
         """
         # backup inst to label mapping
-        old_inst2label = self.get_inst2label(idx + 1)
+        old_inst2label = self.get_inst2label(idx)
 
         # first calc offset for the inserting instruction
         last_inst = self.code.instructions[idx - 1]
