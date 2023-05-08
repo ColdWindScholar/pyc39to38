@@ -174,16 +174,14 @@ class InPlacePatcher:
         """
         fix label names
         """
-        backup = self.label.copy()
-        for _label, _offset in backup.items():
+        new_label = {}
+        for _label, _offset in self.label.items():
             pretty = f'L{_offset}'
-            if _label != pretty:
-                del self.label[_label]
-                if pretty in self.label:
-                    raise ValueError('Label %r already exists' % pretty)
-                else:
-                    self.label[pretty] = _offset
-        del backup
+            if pretty in new_label:
+                raise ValueError('Label %r already exists' % pretty)
+            else:
+                new_label[pretty] = _offset
+        self.label = new_label
 
     def fix_backpatch(self):
         """

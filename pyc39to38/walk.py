@@ -59,6 +59,7 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
         new_code.instructions = new_insts
         # TODO: IDK when the `instructions` is going to be removed
 
+        # note that patch can change the label and backpatch_inst
         patcher = InPlacePatcher(opc, new_code, new_label, new_backpatch_inst)
         rule_applier(patcher, is_pypy)
 
@@ -68,10 +69,10 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
         new_asm.code = new_code
         # this assembles the instructions and writes the code.co_code
         # after that it also freezes the code object
-        co = create_code(new_asm, new_label, new_backpatch_inst)
+        co = create_code(new_asm, patcher.label, patcher.backpatch_inst)
         # append data to lists, also backup the code
         # TODO: i hope i understand this correctly
-        new_asm.update_lists(co, new_label, new_backpatch_inst)
+        new_asm.update_lists(co, patcher.label, patcher.backpatch_inst)
 
     # TODO: why is this getting reversed?
     new_asm.code_list.reverse()
