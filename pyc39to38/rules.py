@@ -15,8 +15,11 @@ from .pattern import replace_op_with_insts
 from . import PY38_VER
 
 
+# args: (patcher, is_pypy)
+# no return value
 RULE_APPLIER = [[InPlacePatcher, bool], None]
 
+# mapping of opname to (compare op arg, extra_opname)
 COMPARE_OPS: dict[str, tuple[int, str]] = {
     'JUMP_IF_NOT_EXC_MATCH': (10, 'POP_JUMP_IF_FALSE')
 }
@@ -32,6 +35,9 @@ def compare_op_callback(opc: ModuleType, inst: Instruction) -> list[Instruction]
 
 
 def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
+    """
+    apply patches for adapting 3.9 bytecode to 3.8
+    """
     opc = get_opcode(PY38_VER, is_pypy)
     for op in COMPARE_OPS.keys():
         replace_op_with_insts(patcher, opc, op, compare_op_callback)
