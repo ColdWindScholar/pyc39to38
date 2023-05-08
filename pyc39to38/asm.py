@@ -7,6 +7,7 @@ from traceback import print_exc
 from os import unlink
 from logging import getLogger
 from struct import pack
+from typing import Optional
 
 from xdis.disasm import (
     disassemble_file,
@@ -46,6 +47,7 @@ def reasm_file(input_path: str, output_path: str, rule_applier: RULE_APPLIER) ->
     version: tuple[int, ...]
     timestamp: int
     asm: Assembler
+    tmp_asm: Optional[NamedTemporaryFile] = None
 
     try:
         with NamedTemporaryFile(
@@ -63,11 +65,13 @@ def reasm_file(input_path: str, output_path: str, rule_applier: RULE_APPLIER) ->
             return False
 
         asm = asm_file(tmp_asm.name)
-        # TODO: do we still need tmp_asm for trans_asm and write_pycfile?
-        unlink(tmp_asm.name)  # anyway, we are removing it here, seems OK
     except (OSError, IOError):
         print_exc()
         return False
+    finally:
+        # TODO: do we still need tmp_asm for trans_asm and write_pycfile?
+        if tmp_asm is not None:
+            unlink(tmp_asm.name)  # anyway, we are removing it here, seems OK
 
     opc = get_opcode(version, is_pypy)
     new_asm = walk_codes(opc, asm, is_pypy, rule_applier)
