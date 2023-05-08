@@ -11,7 +11,10 @@ from .utils import (
     Instruction
 )
 from .patch import InPlacePatcher
-from .insts import replace_op_with_insts
+from .insts import (
+    replace_op_with_insts,
+    replace_op_with_inst
+)
 from . import PY38_VER
 
 
@@ -26,12 +29,19 @@ COMPARE_OPS: dict[str, tuple[int, str]] = {
 
 COMPARE_OP = 'COMPARE_OP'
 
+RERAISE = 'RERAISE'
+END_FINALLY = 'END_FINALLY'
+
 
 def compare_op_callback(opc: ModuleType, inst: Instruction) -> list[Instruction]:
     compare_op_arg, extra_opname = COMPARE_OPS[inst.opname]
     compare_op_inst = build_inst(opc, COMPARE_OP, compare_op_arg)
     extra_inst = build_inst(opc, extra_opname, inst.arg)
     return [compare_op_inst, extra_inst]
+
+
+def reraise_callback(opc: ModuleType, inst: Instruction) -> Instruction:
+    return build_inst(opc, END_FINALLY, inst.arg)
 
 
 def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
@@ -41,3 +51,4 @@ def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     opc = get_opcode(PY38_VER, is_pypy)
     for op in COMPARE_OPS.keys():
         replace_op_with_insts(patcher, opc, op, compare_op_callback)
+    replace_op_with_inst(patcher, opc, RERAISE, reraise_callback)
