@@ -7,6 +7,7 @@ from os.path import (
     extsep
 )
 from typing import Union
+from types import ModuleType
 
 from xasm.assemble import Instruction as InstructionStub
 from xdis.instruction import Instruction as RealInstruction
@@ -18,10 +19,16 @@ Instruction = Union[RealInstruction, InstructionStub]
 
 # the RealInstruction has some properties readonly, use the one from xasm, so it will work well
 # TODO: is this the correct way
-def build_inst(opname: str, opcode: int, arg) -> Instruction:
+def build_inst(opc: ModuleType, opname: str, arg) -> Instruction:
+    """
+    Build an instruction from the given parameters
+    :param opc: the opcode map (it's a module ig)
+    :param opname: the name of the instruction
+    :param arg: the argument for the instruction
+    """
     stub = InstructionStub()
     stub.opname = opname
-    stub.opcode = opcode
+    stub.opcode = opc.opmap[opname]
     stub.arg = arg
     return stub
 

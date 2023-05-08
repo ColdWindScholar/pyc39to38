@@ -26,9 +26,9 @@ COMPARE_OP = 'COMPARE_OP'
 
 def compare_op_callback(opc: ModuleType, inst: Instruction) -> list[Instruction]:
     insts = []
-    compare_op_inst = build_inst(COMPARE_OP, opc.opmap[COMPARE_OP], COMPARE_OPS[inst.opname][0])
+    compare_op_inst = build_inst(opc, COMPARE_OP, COMPARE_OPS[inst.opname][0])
     insts.append(compare_op_inst)
-    extra_inst = build_inst(COMPARE_OPS[inst.opname][1], opc.opmap[COMPARE_OPS[inst.opname][1]], inst.arg)
+    extra_inst = build_inst(opc, COMPARE_OPS[inst.opname][1], inst.arg)
     insts.append(extra_inst)
     return insts
 
