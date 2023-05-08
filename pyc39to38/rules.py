@@ -25,12 +25,10 @@ COMPARE_OP = 'COMPARE_OP'
 
 
 def compare_op_callback(opc: ModuleType, inst: Instruction) -> list[Instruction]:
-    insts = []
-    compare_op_inst = build_inst(opc, COMPARE_OP, COMPARE_OPS[inst.opname][0])
-    insts.append(compare_op_inst)
-    extra_inst = build_inst(opc, COMPARE_OPS[inst.opname][1], inst.arg)
-    insts.append(extra_inst)
-    return insts
+    compare_op_arg, extra_opname = COMPARE_OPS[inst.opname]
+    compare_op_inst = build_inst(opc, COMPARE_OP, compare_op_arg)
+    extra_inst = build_inst(opc, extra_opname, inst.arg)
+    return [compare_op_inst, extra_inst]
 
 
 def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
