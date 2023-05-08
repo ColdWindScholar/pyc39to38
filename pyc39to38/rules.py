@@ -11,7 +11,7 @@ from .utils import (
     Instruction
 )
 from .patch import InPlacePatcher
-from .pattern import replace_one_op_with_multiple_insts
+from .pattern import replace_op_with_insts
 from . import PY38_VER
 
 
@@ -36,4 +36,4 @@ def compare_op_callback(opc: ModuleType, inst: Instruction) -> list[Instruction]
 def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     opc = get_opcode(PY38_VER, is_pypy)
     for op in COMPARE_OPS.keys():
-        replace_one_op_with_multiple_insts(patcher, opc, op, compare_op_callback)
+        replace_op_with_insts(patcher, opc, op, compare_op_callback)
