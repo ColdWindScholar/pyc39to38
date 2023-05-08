@@ -11,7 +11,7 @@ from .utils import (
     Instruction
 )
 from .patch import InPlacePatcher
-from .pattern import replace_op_with_insts
+from .insts import replace_op_with_insts
 from . import PY38_VER
 
 
