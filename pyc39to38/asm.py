@@ -60,7 +60,7 @@ def reasm_file(input_path: str, output_path: str, rule_applier: RULE_APPLIER) ->
                 _, _, version, timestamp, _, is_pypy, _, _
             ) = disassemble_file(input_path, tmp_asm, 'xasm')
 
-        if version[:2] != PY39_VER:
+        if version != PY39_VER:
             logger.error('input bytecode version is not 3.9, aborting')
             return False
 

@@ -13,7 +13,7 @@ FILE_ENCODING = 'utf-8'
 PYASM_SUFFIX = '.pyasm'
 PYC_SUFFIX = '.pyc'
 
-PY38_VER = (3, 8)
-PY39_VER = (3, 9)
+PY38_VER = (3, 8, 0)
+PY39_VER = (3, 9, 0)
 
 MIN_PYC_SIZE = 50
