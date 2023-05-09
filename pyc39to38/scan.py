@@ -141,13 +141,15 @@ def scan_finally(patcher: InPlacePatcher) -> list[Finally]:
             block1_inst = patcher.code.instructions[finally_obj.block1.start + j]
             if inst.opname != block1_inst.opname or inst.arg != block1_inst.arg or inst.line_no != block1_inst.line_no:
                 raise TypeError(
-                    f'"finally" {finally_obj.setup_finally} is invalid, block2 inst #{j} is different from block1'
+                    f'"finally" {finally_obj.setup_finally} is invalid, block2 inst #{j} is different from block1. '
+                    f'finally: {finally_obj}'
                 )
         # the next instruction of the "finally" block2 should be END_FINALLY
         finally_obj.end_finally = finally_obj.block2.end + 1
         if patcher.code.instructions[finally_obj.end_finally].opname != END_FINALLY:
             raise TypeError(
-                f'"finally" {finally_obj.setup_finally} is invalid, {finally_obj.end_finally} should be END_FINALLY'
+                f'"finally" {finally_obj.setup_finally} is invalid, {finally_obj.end_finally} should be END_FINALLY. '
+                f'finally: {finally_obj}'
             )
 
     # remove those are not "finally"
