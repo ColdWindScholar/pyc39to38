@@ -68,19 +68,34 @@ class InPlacePatcher:
         :param offset: offset to start shifting
         :param val: value to shift
         :param allow_equal: also shift the line number at offset if any (default: False)
+
+        :raises ValueError: if line number already exists at new offset (if this happens, it's a bug)
         """
+        new_lnotab = {}
         # find the nearest line_no at offset
         offs = sorted(self.code.co_lnotab.keys())
         for i, off in enumerate(offs):
             next_off = offs[i + 1] if i + 1 < len(offs) else None
+            # check if line number is in range
             if (off > offset or (allow_equal and off == offset)) and (next_off is None or off < next_off):
+                # found the start line number to shift
                 break
         else:
+            # no line number at/after offset, nothing to shift
             return
-        for j in range(i, len(offs)):
-            off = offs[j]
-            line_no = self.code.co_lnotab.pop(off)
-            self.code.co_lnotab[off + val] = line_no
+        for j in range(len(offs)):
+            if j < i:
+                # copy line number before offset
+                new_lnotab[offs[j]] = self.code.co_lnotab[offs[j]]
+            else:
+                # shift and store
+                off = offs[j]
+                line_no = self.code.co_lnotab.pop(off)
+                new_off = off + val
+                if new_off in new_lnotab.keys():
+                    raise ValueError(f"line number {line_no} at offset {new_off} already exists")
+                new_lnotab[new_off] = line_no
+        self.code.co_lnotab = new_lnotab
 
     def pop_inst(self, idx: int) -> (Instruction, bool, Optional[str], Optional[int]):
         """
