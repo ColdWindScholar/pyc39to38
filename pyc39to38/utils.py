@@ -56,7 +56,8 @@ def recalc_idx(history: list[tuple[int, int]], idx: int) -> int:
     :param idx: index to recalculate
     :return: recalculated index
     """
+    orig_idx = idx
     for _idx, _count in history:
-        if idx > _idx:
+        if orig_idx > _idx:
             idx += _count
     return idx
