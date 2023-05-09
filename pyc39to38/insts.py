@@ -67,6 +67,22 @@ def insert_insts(patcher: InPlacePatcher, opc: ModuleType, idx: int, inst: list[
             insert_inst(patcher, opc, idx + i, inst, None, shift_line_no)
 
 
+def remove_insts(patcher: InPlacePatcher, idx: int, count: int) -> list[tuple[Instruction, bool, Optional[str]]]:
+    """
+    remove instructions at idx
+
+    :param patcher: patcher
+    :param idx: the index to remove at
+    :param count: number of instructions to remove
+    :return: list of tuple of instruction, whether it needs to be backpatched, and label name (if any)
+    """
+    buff = []
+    for _ in range(count):
+        inst, backpatched, label_name = patcher.pop_inst(idx)
+        buff.append((inst, backpatched, label_name))
+    return buff
+
+
 def replace_op_with_inst(patcher: InPlacePatcher, opc: ModuleType,
                          opname: str, callback: REPLACE_OP_WITH_ISNT_CALLBACK):
     """
