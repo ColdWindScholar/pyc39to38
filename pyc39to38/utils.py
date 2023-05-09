@@ -14,7 +14,11 @@ from xdis.instruction import Instruction as RealInstruction
 
 
 # for making IDE happy again
-Instruction = Union[RealInstruction, InstructionStub]
+class InstructionStubWithLineNo(InstructionStub):
+    line_no: int
+
+
+Instruction = Union[RealInstruction, InstructionStub, InstructionStubWithLineNo]
 
 
 # the RealInstruction has some properties readonly, use the one from xasm, so it will work well
