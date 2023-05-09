@@ -32,6 +32,20 @@ def find_op(insts: list[Instruction], opname: str) -> int:
     return -1
 
 
+def find_inst(insts: list[Instruction], offset: int) -> int:
+    """
+    Find the first instruction matching the given offset
+
+    :param insts: list of instructions
+    :param offset: offset of instruction to find
+    :return: index of first matching instruction, or -1 if not found
+    """
+    for i, inst in enumerate(insts):
+        if inst.offset == offset:
+            return i
+    return -1
+
+
 def insert_inst(patcher: InPlacePatcher, opc: ModuleType, idx: int,
                 inst: Instruction, label: Optional[str], shift_line_no: bool = False):
     """
