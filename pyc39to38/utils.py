@@ -61,3 +61,19 @@ def recalc_idx(history: list[tuple[int, int]], idx: int) -> int:
         if orig_idx > _idx:
             idx += _count
     return idx
+
+
+def find_lino_no(lnotab: dict[int, int], offset: int) -> int:
+    """
+    Find the line number for the given offset
+
+    :param lnotab: line number table
+    :param offset: offset to find line number for
+    :return: line number for the given offset (or -1 if not found)
+    """
+    offs = sorted(lnotab.keys())
+    for i, off in enumerate(offs):
+        next_off = offs[i + 1] if i + 1 < len(offs) else None
+        if offset >= off and (next_off is None or offset < next_off):
+            return lnotab[off]
+    return -1

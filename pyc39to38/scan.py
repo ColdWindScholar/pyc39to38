@@ -6,6 +6,7 @@ from typing import Optional
 
 from .patch import InPlacePatcher
 from .insts import find_inst
+from .utils import find_lino_no
 
 
 SETUP_FINALLY = 'SETUP_FINALLY'
@@ -139,9 +140,35 @@ def scan_finally(patcher: InPlacePatcher) -> list[Finally]:
         # but, we need to compare every instruction with block1 for safety
         for j, inst in enumerate(patcher.code.instructions[finally_obj.block2.start:finally_obj.block2.end + 1]):
             block1_inst = patcher.code.instructions[finally_obj.block1.start + j]
-            if inst.opname != block1_inst.opname or inst.arg != block1_inst.arg or inst.line_no != block1_inst.line_no:
+            # find the line number of the instruction
+            inst_line_no = find_lino_no(patcher.code.co_lnotab, inst.offset)
+            block1_inst_line_no = find_lino_no(patcher.code.co_lnotab, block1_inst.offset)
+            if inst.opname != block1_inst.opname or inst_line_no != block1_inst_line_no:
                 raise TypeError(
                     f'"finally" {finally_obj.setup_finally} is invalid, block2 inst #{j} is different from block1. '
+                    f'finally: {finally_obj}'
+                )
+            elif patcher.need_backpatch(inst):  # if the inst is a jump, we need to calculate the relative offset
+                # dereference the label and find the target instruction
+                jump_target_inst = patcher.label[inst.arg]
+                # calculate the relative offset
+                relative_offset = jump_target_inst - inst.offset
+                # also calculate for the block1 inst
+                block1_jump_target_inst = patcher.label[block1_inst.arg]
+                block1_relative_offset = block1_jump_target_inst - block1_inst.offset
+                # check if they are the same
+                if relative_offset != block1_relative_offset:
+                    # this means the "finally" block2 is not the same as the "finally" block1
+                    raise TypeError(
+                        f'"finally" {finally_obj.setup_finally} is invalid, block2 inst #{j} is a jump, '
+                        f'but the relative offset {relative_offset} is different from {block1_relative_offset}. '
+                        f'finally: {finally_obj}'
+                    )
+            elif inst.arg != block1_inst.arg:
+                # if the inst is not a jump, we just need to check the argument
+                raise TypeError(
+                    f'"finally" {finally_obj.setup_finally} is invalid, block2 inst #{j} has a different argument '
+                    f'{inst.arg} from block1 ({block1_inst.arg}). '
                     f'finally: {finally_obj}'
                 )
         # the next instruction of the "finally" block2 should be END_FINALLY
