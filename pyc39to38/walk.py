@@ -70,7 +70,7 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
         try:
             rule_applier(patcher, is_pypy)
         except (ValueError, TypeError):
-            logger.error('failed to apply rules:')
+            logger.error(f'failed to apply rules for code #{code_idx}:')
             print_exc()
             return None
 
@@ -78,7 +78,7 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
             # messes are done, fix the stuffs xDD
             patcher.fix_all()
         except ValueError:
-            logger.error('failed to fix the code:')
+            logger.error(f'failed to fix the code #{code_idx}:')
             print_exc()
             return None
 

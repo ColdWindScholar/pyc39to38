@@ -122,7 +122,8 @@ def scan_finally(patcher: InPlacePatcher) -> list[Finally]:
         elif patcher.code.instructions[finally_obj.jump_forward].opname != JUMP_FORWARD:
             raise TypeError(
                 f'"except/finally" {finally_obj.setup_finally} is invalid, '
-                f'{finally_obj.jump_forward} should be JUMP_FORWARD or POP_BLOCK'
+                f'{finally_obj.jump_forward} should be JUMP_FORWARD or POP_BLOCK, '
+                f'but it\'s {patcher.code.instructions[finally_obj.jump_forward].opname}'
             )
         # the "finally" block1 stays between POP_BLOCK and JUMP_FORWARD
         block1_len = finally_obj.jump_forward - finally_obj.pop_block - 1
