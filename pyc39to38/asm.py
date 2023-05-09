@@ -7,7 +7,10 @@ from traceback import print_exc
 from os import unlink
 from logging import getLogger
 from struct import pack
-from typing import Optional
+from typing import (
+    Optional,
+    Tuple
+)
 
 from xdis.disasm import (
     disassemble_file,
@@ -45,7 +48,7 @@ def reasm_file(input_path: str, output_path: str, rule_applier: RULE_APPLIER) ->
     :param rule_applier: rule applier
     :return: True if success, False if failed
     """
-    version: tuple[int, ...]
+    version: Tuple[int, ...]
     timestamp: int
     asm: Assembler
     tmp_asm: Optional[NamedTemporaryFile] = None

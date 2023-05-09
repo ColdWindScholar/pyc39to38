@@ -3,6 +3,11 @@ patching rules - NOT PORTABLE
 """
 
 from types import ModuleType
+from typing import (
+    List,
+    Dict,
+    Tuple
+)
 
 from xdis.disasm import get_opcode
 
@@ -27,7 +32,7 @@ from . import PY38_VER
 RULE_APPLIER = [[InPlacePatcher, bool], None]
 
 # mapping of opname to (compare op arg, extra_opname)
-COMPARE_OPS: dict[str, tuple[int, str]] = {
+COMPARE_OPS: Dict[str, Tuple[int, str]] = {
     'JUMP_IF_NOT_EXC_MATCH': (10, 'POP_JUMP_IF_FALSE')
 }
 
@@ -38,7 +43,7 @@ END_FINALLY = 'END_FINALLY'
 BEGIN_FINALLY = 'BEGIN_FINALLY'
 
 
-def compare_op_callback(opc: ModuleType, inst: Instruction) -> list[Instruction]:
+def compare_op_callback(opc: ModuleType, inst: Instruction) -> List[Instruction]:
     compare_op_arg, extra_opname = COMPARE_OPS[inst.opname]
     compare_op_inst = build_inst(opc, COMPARE_OP, compare_op_arg)
     extra_inst = build_inst(opc, extra_opname, inst.arg)
@@ -61,7 +66,7 @@ def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     # unless you want to recalc all the indexes
     finally_objs = scan_finally(patcher)
     # idx, add/removed count
-    history: list[tuple[int, int]] = []
+    history: List[Tuple[int, int]] = []
     for finally_obj in finally_objs:
         # remove block1 and jump_forward
         count = finally_obj.block1.length + 1

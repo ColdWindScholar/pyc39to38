@@ -6,7 +6,11 @@ from os.path import (
     basename,
     extsep
 )
-from typing import Union
+from typing import (
+    Union,
+    List,
+    Tuple
+)
 from types import ModuleType
 
 from xasm.assemble import Instruction as InstructionStub
@@ -48,7 +52,7 @@ def rm_suffix(path: str, n_suffixes: int = 1) -> str:
     return filename.rsplit(extsep, n_suffixes)[0]
 
 
-def recalc_idx(history: list[tuple[int, int]], idx: int) -> int:
+def recalc_idx(history: List[Tuple[int, int]], idx: int) -> int:
     """
     Recalculate index after patching
 

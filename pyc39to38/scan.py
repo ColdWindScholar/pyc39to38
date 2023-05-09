@@ -2,7 +2,10 @@
 scanning
 """
 
-from typing import Optional
+from typing import (
+    Optional,
+    List
+)
 
 from .patch import InPlacePatcher
 from .insts import find_inst
@@ -61,7 +64,7 @@ class Finally:
         )
 
 
-def scan_finally(patcher: InPlacePatcher) -> list[Finally]:
+def scan_finally(patcher: InPlacePatcher) -> List[Finally]:
     """
     scan "finally" structures
 

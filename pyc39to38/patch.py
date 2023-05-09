@@ -2,7 +2,12 @@
 patcher
 """
 
-from typing import Optional
+from typing import (
+    Optional,
+    List,
+    Dict,
+    Set
+)
 from types import ModuleType
 
 from xdis.codetype.code38 import Code38
@@ -14,7 +19,7 @@ from xasm.assemble import is_int
 # making IDE happy
 # TODO: NOT PORTABLE? what is the correct way to do this?
 class Code38WithInstructions(Code38):
-    instructions: list[Instruction]
+    instructions: List[Instruction]
 
 
 class InPlacePatcher:
@@ -23,18 +28,18 @@ class InPlacePatcher:
     """
 
     def __init__(self, opc: ModuleType, code: Code38WithInstructions,
-                 label: dict[str, int], backpatch_inst: set[Instruction]):
+                 label: Dict[str, int], backpatch_inst: Set[Instruction]):
         # opcode map (it's a module ig)
         self.opc = opc
-        # code.co_lnotab is a dict[int, int], where the first int is offset, the second is line_no
+        # code.co_lnotab is a Dict[int, int], where the first int is offset, the second is line_no
         self.code = code
-        # label is a dict[str, int], where str is label name, int is offset
+        # label is a Dict[str, int], where str is label name, int is offset
         self.label = label
         # a set of jump instructions with string label as target,
         # these have to be patched to int offset later in create_code
         self.backpatch_inst = backpatch_inst
 
-    def get_inst2label(self, idx: int) -> dict[Instruction, str]:
+    def get_inst2label(self, idx: int) -> Dict[Instruction, str]:
         """
         get a dict of instruction to label name
 

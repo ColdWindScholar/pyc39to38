@@ -5,7 +5,9 @@ simple pattern matching
 from types import ModuleType
 from typing import (
     Optional,
-    Callable
+    Callable,
+    List,
+    Tuple
 )
 
 from xdis.cross_dis import op_size
@@ -15,10 +17,10 @@ from .patch import InPlacePatcher
 
 
 REPLACE_OP_WITH_INST_CALLBACK = Callable[[ModuleType, Instruction], Instruction]
-REPLACE_OP_WITH_INSTS_CALLBACK = Callable[[ModuleType, Instruction], list[Instruction]]
+REPLACE_OP_WITH_INSTS_CALLBACK = Callable[[ModuleType, Instruction], List[Instruction]]
 
 
-def find_op(insts: list[Instruction], opname: str) -> int:
+def find_op(insts: List[Instruction], opname: str) -> int:
     """
     Find the first instruction matching the given opname
 
@@ -32,7 +34,7 @@ def find_op(insts: list[Instruction], opname: str) -> int:
     return -1
 
 
-def find_inst(insts: list[Instruction], offset: int) -> int:
+def find_inst(insts: List[Instruction], offset: int) -> int:
     """
     Find the first instruction matching the given offset
 
@@ -62,7 +64,7 @@ def insert_inst(patcher: InPlacePatcher, opc: ModuleType, idx: int,
     patcher.insert_inst(inst, size, idx, label, shift_line_no)
 
 
-def insert_insts(patcher: InPlacePatcher, opc: ModuleType, idx: int, inst: list[Instruction],
+def insert_insts(patcher: InPlacePatcher, opc: ModuleType, idx: int, inst: List[Instruction],
                  label: Optional[str], shift_line_no: bool = False):
     """
     Insert multiple instructions at the given index
@@ -82,7 +84,7 @@ def insert_insts(patcher: InPlacePatcher, opc: ModuleType, idx: int, inst: list[
 
 
 def remove_insts(patcher: InPlacePatcher,
-                 idx: int, count: int) -> list[tuple[Instruction, bool, Optional[str], Optional[int]]]:
+                 idx: int, count: int) -> List[Tuple[Instruction, bool, Optional[str], Optional[int]]]:
     """
     remove instructions at idx
 

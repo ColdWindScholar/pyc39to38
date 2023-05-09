@@ -5,7 +5,10 @@ code walker
 from copy import copy
 from types import ModuleType
 from traceback import print_exc
-from typing import Optional
+from typing import (
+    Optional,
+    Set
+)
 from logging import getLogger
 
 from xasm.assemble import (
@@ -42,7 +45,7 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
         new_code = copy(old_code)
         new_label = copy(asm.label[code_idx])
         old_backpatch_inst = asm.backpatch[code_idx]
-        new_backpatch_inst: set[Instruction] = set()
+        new_backpatch_inst: Set[Instruction] = set()
         if isinstance(old_code.co_lnotab, dict):
             # co_lnotab is already decoded
             new_code.co_lnotab = copy(old_code.co_lnotab)
