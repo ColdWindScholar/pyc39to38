@@ -82,7 +82,7 @@ class InPlacePatcher:
             line_no = self.code.co_lnotab.pop(off)
             self.code.co_lnotab[off + val] = line_no
 
-    def pop_inst(self, idx: int, shift_line_no: bool = False) -> (Instruction, bool, Optional[str]):
+    def pop_inst(self, idx: int) -> (Instruction, bool, Optional[str], Optional[int]):
         """
         remove instruction at idx
 
@@ -90,8 +90,8 @@ class InPlacePatcher:
               or this can fail when re-assembling
 
         :param idx: index of instruction to remove
-        :param shift_line_no: whether to shift the line number at the offset if any (default: False)
-        :return: removed instruction, whether it is in backpatch_inst, and label name if present
+        :return: removed instruction, whether it is in backpatch_inst,
+                 and label name if present, line number (if any)
         """
         # backup inst to label mapping
         old_inst2label = self.get_inst2label(idx + 1)
@@ -121,10 +121,15 @@ class InPlacePatcher:
             if _label is not None:
                 self.label[_label] = inst.offset
 
-        # shift line number
-        self.shift_line_no(popped_inst.offset, -size, shift_line_no)
+        # remove line number at offset if any
+        line_no = None
+        if popped_inst.offset in self.code.co_lnotab.keys():
+            line_no = self.code.co_lnotab.pop(popped_inst.offset)
 
-        return popped_inst, backpatch, label
+        # shift line number
+        self.shift_line_no(popped_inst.offset, -size)
+
+        return popped_inst, backpatch, label, line_no
 
     def insert_inst(self, inst: Instruction, size: int, idx: int,
                     label: Optional[str] = None, shift_line_no: bool = False):

@@ -75,25 +75,27 @@ def insert_insts(patcher: InPlacePatcher, opc: ModuleType, idx: int, inst: list[
     :param shift_line_no: whether to shift the line number at the offset if any (default: False)
     """
     for i, inst in enumerate(inst):
-        if i == 0 and label is not None:
+        if i == 0:
             insert_inst(patcher, opc, idx + i, inst, label, shift_line_no)
         else:
-            insert_inst(patcher, opc, idx + i, inst, None, shift_line_no)
+            insert_inst(patcher, opc, idx + i, inst, None)
 
 
-def remove_insts(patcher: InPlacePatcher, idx: int, count: int) -> list[tuple[Instruction, bool, Optional[str]]]:
+def remove_insts(patcher: InPlacePatcher,
+                 idx: int, count: int) -> list[tuple[Instruction, bool, Optional[str], Optional[int]]]:
     """
     remove instructions at idx
 
     :param patcher: patcher
     :param idx: the index to remove at
     :param count: number of instructions to remove
-    :return: list of tuple of instruction, whether it needs to be backpatched, and label name (if any)
+    :return: list of tuple of instruction, whether it needs to be backpatched,
+             and label name (if any), line number (if any)
     """
     buff = []
     for _ in range(count):
-        inst, backpatched, label_name = patcher.pop_inst(idx)
-        buff.append((inst, backpatched, label_name))
+        inst, backpatched, label_name, line_no = patcher.pop_inst(idx)
+        buff.append((inst, backpatched, label_name, line_no))
     return buff
 
 
@@ -108,9 +110,12 @@ def replace_op_with_inst(patcher: InPlacePatcher, opc: ModuleType,
     :param callback: callback to get the instruction to replace with
     """
     while (idx := find_op(patcher.code.instructions, opname)) != -1:
-        inst, _, label = patcher.pop_inst(idx)
+        inst, _, label, line_no = patcher.pop_inst(idx)
         inst = callback(opc, inst)
-        insert_inst(patcher, opc, idx, inst, label)
+        insert_inst(patcher, opc, idx, inst, label, True)
+        # restore line number if any
+        if line_no is not None:
+            patcher.code.co_lnotab[inst.offset] = line_no
 
 
 def replace_op_with_insts(patcher: InPlacePatcher, opc: ModuleType, opname: str,
@@ -126,8 +131,11 @@ def replace_op_with_insts(patcher: InPlacePatcher, opc: ModuleType, opname: str,
     """
     count = 0
     while (idx := find_op(patcher.code.instructions, opname)) != -1:
-        inst, _, label = patcher.pop_inst(idx)
+        inst, _, label, line_no = patcher.pop_inst(idx)
         insts = callback(opc, inst)
-        insert_insts(patcher, opc, idx, insts, label)
+        insert_insts(patcher, opc, idx, insts, label, True)
+        # restore line number if any
+        if line_no is not None:
+            patcher.code.co_lnotab[inst.offset] = line_no
         count += 1
     return count
