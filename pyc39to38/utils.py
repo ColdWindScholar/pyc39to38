@@ -46,3 +46,17 @@ def rm_suffix(path: str, n_suffixes: int = 1) -> str:
     """
     filename = basename(path)
     return filename.rsplit(extsep, n_suffixes)[0]
+
+
+def recalc_idx(history: list[tuple[int, int]], idx: int) -> int:
+    """
+    Recalculate index after patching
+
+    :param history: list of (idx, add/removed count)
+    :param idx: index to recalculate
+    :return: recalculated index
+    """
+    for _idx, _count in history:
+        if idx > _idx:
+            idx += _count
+    return idx
