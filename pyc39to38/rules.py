@@ -65,9 +65,18 @@ def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     for finally_obj in finally_objs:
         # remove block1 and jump_forward
         count = finally_obj.block1.length + 1
-        remove_insts(patcher, recalc_idx(history, finally_obj.block1.start), count)
+        insts = remove_insts(patcher, recalc_idx(history, finally_obj.block1.start), count)
         history.append((finally_obj.block1.start, -count))
         # add BEGIN_FINALLY at there
         inst = build_inst(opc, BEGIN_FINALLY, None)
         insert_inst(patcher, opc, recalc_idx(history, finally_obj.block1.start), inst, None, True)
         history.append((finally_obj.block1.start, 1))
+        # restore line number if any
+        try:
+            # find the smallest line number, then set it
+            min_line_no = min(line_no if line_no else 1145141919810 for _, _, _, line_no in insts)
+            block2_first_inst = patcher.code.instructions[recalc_idx(history, finally_obj.block2.start)]
+            patcher.code.co_lnotab[block2_first_inst.offset] = min_line_no
+        except ValueError:
+            # no line number
+            pass
