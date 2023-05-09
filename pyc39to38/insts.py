@@ -14,8 +14,8 @@ from .utils import Instruction
 from .patch import InPlacePatcher
 
 
-REPLACE_OP_WITH_ISNT_CALLBACK = Callable[[ModuleType, Instruction], Instruction]
-REPLACE_OP_WITH_INST_CALLBACK = Callable[[ModuleType, Instruction], list[Instruction]]
+REPLACE_OP_WITH_INST_CALLBACK = Callable[[ModuleType, Instruction], Instruction]
+REPLACE_OP_WITH_INSTS_CALLBACK = Callable[[ModuleType, Instruction], list[Instruction]]
 
 
 def find_op(insts: list[Instruction], opname: str) -> int:
@@ -100,7 +100,7 @@ def remove_insts(patcher: InPlacePatcher,
 
 
 def replace_op_with_inst(patcher: InPlacePatcher, opc: ModuleType,
-                         opname: str, callback: REPLACE_OP_WITH_ISNT_CALLBACK):
+                         opname: str, callback: REPLACE_OP_WITH_INST_CALLBACK):
     """
     replace all matching op by given opname with the given instruction
 
@@ -119,7 +119,7 @@ def replace_op_with_inst(patcher: InPlacePatcher, opc: ModuleType,
 
 
 def replace_op_with_insts(patcher: InPlacePatcher, opc: ModuleType, opname: str,
-                          callback: REPLACE_OP_WITH_INST_CALLBACK) -> int:
+                          callback: REPLACE_OP_WITH_INSTS_CALLBACK) -> int:
     """
     replace all matching op by given opname with the given instructions
 
