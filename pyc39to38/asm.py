@@ -75,7 +75,9 @@ def reasm_file(input_path: str, output_path: str, rule_applier: RULE_APPLIER) ->
             unlink(tmp_asm.name)  # anyway, we are removing it here, seems OK
 
     opc = get_opcode(version, is_pypy)
-    new_asm = walk_codes(opc, asm, is_pypy, rule_applier)
+    if (new_asm := walk_codes(opc, asm, is_pypy, rule_applier)) is None:
+        logger.error('failed to walk through the codes, aborting')
+        return False
 
     try:
         with open(output_path, 'wb') as fp:

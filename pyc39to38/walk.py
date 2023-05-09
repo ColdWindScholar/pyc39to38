@@ -4,6 +4,9 @@ code walker
 
 from copy import copy
 from types import ModuleType
+from traceback import print_exc
+from typing import Optional
+from logging import getLogger
 
 from xasm.assemble import (
     Assembler,
@@ -18,7 +21,10 @@ from .rules import RULE_APPLIER
 from . import PY38_VER
 
 
-def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RULE_APPLIER) -> Assembler:
+logger = getLogger('walk')
+
+
+def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RULE_APPLIER) -> Optional[Assembler]:
     """
     Walk through the codes and downgrade them
 
@@ -61,10 +67,20 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
 
         # note that patch can change the label and backpatch_inst
         patcher = InPlacePatcher(opc, new_code, new_label, new_backpatch_inst)
-        rule_applier(patcher, is_pypy)
+        try:
+            rule_applier(patcher, is_pypy)
+        except (ValueError, TypeError):
+            logger.error('failed to apply rules:')
+            print_exc()
+            return None
 
-        # messes are done, fix the stuffs xDD
-        patcher.fix_all()
+        try:
+            # messes are done, fix the stuffs xDD
+            patcher.fix_all()
+        except ValueError:
+            logger.error('failed to fix the code:')
+            print_exc()
+            return None
 
         new_asm.code = new_code
         # this assembles the instructions and writes the code.co_code

@@ -136,6 +136,8 @@ class InPlacePatcher:
         :param idx: index to insert at
         :param label: label name, None means not to add label
         :param shift_line_no: whether to shift the line number at the offset if any (default: False)
+
+        :raises ValueError: if a label with the same name already exists
         """
         # backup inst to label mapping
         old_inst2label = self.get_inst2label(idx)
@@ -173,6 +175,8 @@ class InPlacePatcher:
     def fix_label(self):
         """
         fix label names
+
+        :raises ValueError: if label already exists (well, it shouldn't. if it does, it's our bug)
         """
         new_label = {}
         for _label, _offset in self.label.items():
