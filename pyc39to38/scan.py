@@ -148,7 +148,7 @@ def scan_finally(patcher: InPlacePatcher) -> list[Finally]:
                     f'"finally" {finally_obj.setup_finally} is invalid, block2 inst #{j} is different from block1. '
                     f'finally: {finally_obj}'
                 )
-            elif patcher.need_backpatch(inst):  # if the inst is a jump, we need to calculate the relative offset
+            if patcher.need_backpatch(inst):  # if the inst is a jump, we need to calculate the relative offset
                 # dereference the label and find the target instruction
                 jump_target_inst = patcher.label[inst.arg]
                 # calculate the relative offset
