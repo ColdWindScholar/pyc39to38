@@ -52,11 +52,15 @@ def rm_suffix(path: str, n_suffixes: int = 1) -> str:
     return filename.rsplit(extsep, n_suffixes)[0]
 
 
-def recalc_idx(history: List[Tuple[int, int]], idx: int) -> int:
+# idx, add/removed count
+HISTORY = List[Tuple[int, int]]
+
+
+def recalc_idx(history: HISTORY, idx: int) -> int:
     """
     Recalculate index after patching
 
-    :param history: list of (idx, add/removed count)
+    :param history: HISTORY
     :param idx: index to recalculate
     :return: recalculated index
     """

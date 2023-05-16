@@ -14,7 +14,8 @@ from xdis.disasm import get_opcode
 from .utils import (
     build_inst,
     Instruction,
-    recalc_idx
+    recalc_idx,
+    HISTORY
 )
 from .patch import InPlacePatcher
 from .insts import (
@@ -34,9 +35,6 @@ from . import PY38_VER
 # args: (patcher, is_pypy)
 # no return value
 RULE_APPLIER = [[InPlacePatcher, bool], None]
-
-# idx, add/removed count
-HISTORY = List[Tuple[int, int]]
 
 # mapping of opname to (compare op arg, extra_opname)
 COMPARE_OPS: Dict[str, Tuple[int, str]] = {
