@@ -7,7 +7,9 @@ from types import ModuleType
 from traceback import print_exc
 from typing import (
     Optional,
-    Set
+    Set,
+    List,
+    Tuple
 )
 from logging import getLogger
 
@@ -18,13 +20,20 @@ from xasm.assemble import (
 )
 from xdis.cross_dis import op_size
 
-from .utils import Instruction
+from .utils import (
+    Instruction,
+    HISTORY,
+    recalc_idx,
+    build_inst
+)
 from .patch import InPlacePatcher
 from .rules import RULE_APPLIER
 from . import PY38_VER
 
 
 logger = getLogger('walk')
+
+EXTENDED_ARG = 'EXTENDED_ARG'
 
 
 def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RULE_APPLIER) -> Optional[Assembler]:
@@ -70,12 +79,83 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
 
         # note that patch can change the label and backpatch_inst
         patcher = InPlacePatcher(opc, new_code, new_label, new_backpatch_inst)
+
+        # before applying the patches, we need to remove EXTENDED_ARG
+        pre_history: HISTORY = []
+        # idx, label, line_no
+        remove: List[int] = []
+        removed: List[Tuple[int, str, int]] = []
+        for inst_idx, inst in enumerate(patcher.code.instructions):
+            if inst.opname == EXTENDED_ARG:
+                remove.append(inst_idx)
+        for inst_idx in remove:
+            _, _, label, line_no = patcher.pop_inst(recalc_idx(pre_history, inst_idx))
+            pre_history.append((inst_idx, -1))
+            removed.append((inst_idx, label, line_no))
+        for removed_inst_idx, label, line_no in removed:
+            next_inst = patcher.code.instructions[recalc_idx(pre_history, removed_inst_idx + 1)]
+            # if the removed inst has a label, we need some extra handling
+            if label:
+                # if next inst has label, we need to redirect all reference of the original label to it
+                for iterating_label, label_off in patcher.label.items():
+                    if label_off == next_inst.offset:
+                        # replace all reference of the original label to the label of next inst
+                        for inst in patcher.code.instructions:
+                            if patcher.need_backpatch(inst):
+                                # this inst has a label as arg
+                                if inst.arg == label:
+                                    inst.arg = iterating_label
+                        break
+                else:
+                    # no label found for next inst, just add the original label back to there
+                    patcher.label[label] = next_inst.offset
+            # restore the line number if needed
+            if line_no:
+                patcher.code.co_lnotab[next_inst.offset] = line_no
+
         try:
             rule_applier(patcher, is_pypy)
         except (ValueError, TypeError):
             logger.error(f'failed to apply rules for code #{code_idx}:')
             print_exc()
             return None
+
+        # add back the EXTENDED_ARG where needed
+        post_history: HISTORY = []
+        add: List[Tuple[int, int]] = []
+
+        for inst_idx, inst in enumerate(patcher.code.instructions):
+            if patcher.need_backpatch(inst):
+                # this inst has a label as arg
+                # deref the label
+                label_off = patcher.label[inst.arg]
+                # calculate the real arg
+                if inst.opcode in opc.JREL_OPS:
+                    arg = label_off - inst.offset - op_size(inst.opcode, opc)
+                elif inst.opcode in opc.JABS_OPS:
+                    arg = label_off
+                else:
+                    raise ValueError(f'unsupported jump opcode {inst.opname} at idx {inst_idx} in code #{code_idx}')
+                # if the arg is bigger than one byte, we need to add EXTENDED_ARG
+                # the arg for EXTENDED_ARG is how many extra bytes we need to extend
+                if arg > 255:
+                    # we need to add EXTENDED_ARG
+                    idx = recalc_idx(post_history, inst_idx)
+                    add.append((idx, arg // 256))
+
+        for idx, arg in add:
+            size = op_size(opc.opmap[EXTENDED_ARG], opc)
+            extended_arg_inst = build_inst(patcher.opc, EXTENDED_ARG, arg)
+            patcher.insert_inst(extended_arg_inst, size, idx)
+            post_history.append((idx, 1))
+            # if the next inst has a label, move it to here
+            next_inst = patcher.code.instructions[recalc_idx(post_history, idx + 1)]
+            # iterate all labels
+            for iterating_label, label_off in patcher.label.items():
+                if label_off == next_inst.offset:
+                    # set the offset to this inst
+                    patcher.label[iterating_label] = extended_arg_inst.offset
+                    break
 
         try:
             # messes are done, fix the stuffs xDD
