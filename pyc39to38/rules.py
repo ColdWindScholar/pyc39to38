@@ -66,7 +66,7 @@ def do_38_to_39_finally(patcher: InPlacePatcher, is_pypy: bool, opc: ModuleType,
     """
     fix finally blocks for 3.8 bytecode
     """
-    children = []
+    children: List[FinallyInfo] = []
 
     for finally_info in finally_infos:
         # remove block1 and jump_forward
@@ -75,7 +75,7 @@ def do_38_to_39_finally(patcher: InPlacePatcher, is_pypy: bool, opc: ModuleType,
         history.append((finally_info.obj.block1.start, -count))
         # add BEGIN_FINALLY at there
         inst = build_inst(opc, BEGIN_FINALLY, None)
-        insert_inst(patcher, patcher.opc, recalc_idx(history, finally_info.obj.block1.start), inst, None, True)
+        insert_inst(patcher, opc, recalc_idx(history, finally_info.obj.block1.start), inst, None, True)
         history.append((finally_info.obj.block1.start, 1))
         # restore line number if any
         line_nos = []
