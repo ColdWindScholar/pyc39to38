@@ -7,6 +7,15 @@ pyc39to38 - Python 3.9 to 3.8 bytecode converter
 
 This is a simple tool to convert Python 3.9 bytecode to 3.8.
 
+## TODO
+
+- [ ] except blocks
+  - [x] replace `RERAISE` with `END_FINALLY`
+- [ ] finally blocks
+  - [x] replace <finally block 1> and `JUMP_FORWARD` with `BEGIN_FINALLY`
+- [ ] compare ops
+  - [x] replace `JUMP_IF_NOT_EXC_MATCH` with `COMPARE_OP 10` and `POP_JUMP_IF_FALSE`
+
 ## Usage
 
 ```shell
