@@ -9,7 +9,8 @@ from typing import (
     Optional,
     Set,
     List,
-    Tuple
+    Tuple,
+    Dict
 )
 from logging import getLogger
 
@@ -19,6 +20,8 @@ from xasm.assemble import (
     decode_lineno_tab
 )
 from xdis.cross_dis import op_size
+from xdis.codetype.code38 import Code38
+from xdis.codetype.base import iscode
 
 from .utils import (
     Instruction,
@@ -49,6 +52,8 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
 
     new_asm = Assembler(PY38_VER, is_pypy)
     new_asm.size = asm.size
+
+    methods: Dict[str, Code38] = {}
 
     for code_idx, old_code in enumerate(asm.codes):
         new_code = copy(old_code)
@@ -166,9 +171,19 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
             return None
 
         new_asm.code = new_code
+        # fix the code objects in constants
+        for idx, const in enumerate(new_asm.code.co_consts):
+            if iscode(const):
+                if const.co_name in methods:
+                    new_asm.code.co_consts[idx] = methods[const.co_name]
+                else:
+                    logger.error(f'missing method \'{const.co_name}\' in code #{code_idx}')
+                    return None
         # this assembles the instructions and writes the code.co_code
         # after that it also freezes the code object
         co = create_code(new_asm, patcher.label, patcher.backpatch_inst)
+        # register the method name
+        methods[co.co_name] = co
         # append data to lists, also backup the code
         # TODO: i hope i understand this correctly
         new_asm.update_lists(co, patcher.label, patcher.backpatch_inst)
