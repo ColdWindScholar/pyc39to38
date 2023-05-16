@@ -47,14 +47,14 @@ class Finally:
     """
     def __init__(self, start: int, pop_block: int, scope: Optional[Scope],
                  block1: Optional[FinallyBlock], jump_forward: int,
-                 block2: Optional[FinallyBlock], end: int):
+                 block2: Optional[FinallyBlock], end_finally: int):
         self.setup_finally = start
         self.pop_block = pop_block
         self.scope = scope
         self.block1 = block1
         self.jump_forward = jump_forward
         self.block2 = block2
-        self.end_finally = end
+        self.end_finally = end_finally
 
     def __repr__(self) -> str:
         return (
