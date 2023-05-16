@@ -9,7 +9,8 @@ from os.path import (
 from typing import (
     Union,
     List,
-    Tuple
+    Tuple,
+    Dict
 )
 from types import ModuleType
 
@@ -71,7 +72,7 @@ def recalc_idx(history: HISTORY, idx: int) -> int:
     return idx
 
 
-def find_lino_no(lnotab: dict[int, int], offset: int) -> int:
+def find_lino_no(lnotab: Dict[int, int], offset: int) -> int:
     """
     Find the line number for the given offset
 
