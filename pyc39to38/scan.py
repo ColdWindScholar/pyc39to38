@@ -16,6 +16,7 @@ from .utils import find_lino_no
 SETUP_FINALLY = 'SETUP_FINALLY'
 POP_BLOCK = 'POP_BLOCK'
 JUMP_FORWARD = 'JUMP_FORWARD'
+JUMP_ABSOLUTE = 'JUMP_ABSOLUTE'
 END_FINALLY = 'END_FINALLY'
 
 UNCONFIRMED = -1
@@ -47,20 +48,20 @@ class _Finally:
     info of a "finally" structure
     """
     def __init__(self, start: int, pop_block: int, scope: Optional[Scope],
-                 block1: Optional[FinallyBlock], jump_forward: int,
+                 block1: Optional[FinallyBlock], jump: int,
                  block2: Optional[FinallyBlock], end_finally: int):
         self.setup_finally = start
         self.pop_block = pop_block
         self.scope = scope
         self.block1 = block1
-        self.jump_forward = jump_forward
+        self.jump = jump
         self.block2 = block2
         self.end_finally = end_finally
 
     def __repr__(self) -> str:
         return (
             f'_Finally(start={self.setup_finally}, pop_block={self.pop_block}, \n'
-            f'    scope={self.scope}, block1={self.block1}, jump_forward={self.jump_forward}, \n'
+            f'    scope={self.scope}, block1={self.block1}, jump={self.jump}, \n'
             f'    block2={self.block2}, end_finally={self.end_finally})\n'
         )
 
@@ -129,30 +130,30 @@ def scan_finally(patcher: InPlacePatcher) -> List[_Finally]:
     remove = []
 
     for i, finally_obj in enumerate(finally_objs):
-        # there's a JUMP_FORWARD before the "finally" block2
-        finally_obj.jump_forward = finally_obj.block2.start - 1
-        if finally_obj.jump_forward == finally_obj.pop_block:
-            # if the JUMP_FORWARD doesn't exist, and it's the same as the POP_BLOCK
+        # there's a JUMP_FORWARD/JUMP_ABSOLUTE before the "finally" block2
+        finally_obj.jump = finally_obj.block2.start - 1
+        if finally_obj.jump == finally_obj.pop_block:
+            # if the jump inst doesn't exist, and it's the same as the POP_BLOCK
             # it's not a "finally", but an "except" without "finally"
             remove.append(i)
             continue
-        elif patcher.code.instructions[finally_obj.jump_forward].opname != JUMP_FORWARD:
+        elif patcher.code.instructions[finally_obj.jump].opname not in (JUMP_FORWARD, JUMP_ABSOLUTE):
             raise TypeError(
                 f'"except/finally" {finally_obj.setup_finally} is invalid, '
-                f'{finally_obj.jump_forward} should be JUMP_FORWARD or POP_BLOCK, '
-                f'but it\'s {patcher.code.instructions[finally_obj.jump_forward].opname}'
+                f'{finally_obj.jump} should be JUMP_FORWARD/JUMP_ABSOLUTE or POP_BLOCK, '
+                f'but it\'s {patcher.code.instructions[finally_obj.jump].opname}'
             )
-        # the "finally" block1 stays between POP_BLOCK and JUMP_FORWARD
-        block1_len = finally_obj.jump_forward - finally_obj.pop_block - 1
+        # the "finally" block1 stays between POP_BLOCK and JUMP_FORWARD/JUMP_ABSOLUTE
+        block1_len = finally_obj.jump - finally_obj.pop_block - 1
         if block1_len == 0:
             # if block1's length is 0, it's not a "finally", but an "except" with "finally"
             remove.append(i)
             continue
-        finally_obj.block1 = FinallyBlock(finally_obj.pop_block + 1, finally_obj.jump_forward - 1, block1_len)
+        finally_obj.block1 = FinallyBlock(finally_obj.pop_block + 1, finally_obj.jump - 1, block1_len)
         # the "finally" block1 should be the same as the "finally" block2, so the length should be the same
         finally_obj.block2.end = finally_obj.block2.start + block1_len - 1
         finally_obj.block2.length = block1_len
-        # the "finally" block2 is between JUMP_FORWARD and END_FINALLY
+        # the "finally" block2 is between JUMP_FORWARD/JUMP_ABSOLUTE and END_FINALLY
         # but, we need to compare every instruction with block1 for safety
         for j, inst in enumerate(patcher.code.instructions[finally_obj.block2.start:finally_obj.block2.end + 1]):
             block1_inst = patcher.code.instructions[finally_obj.block1.start + j]
