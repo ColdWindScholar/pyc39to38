@@ -78,14 +78,16 @@ def do_38_to_39_finally(patcher: InPlacePatcher, is_pypy: bool, opc: ModuleType,
         insert_inst(patcher, patcher.opc, recalc_idx(history, finally_info.obj.block1.start), inst, None, True)
         history.append((finally_info.obj.block1.start, 1))
         # restore line number if any
-        try:
+        line_nos = []
+        for _, _, _, line_no in insts:
+            if line_no:
+                line_nos.append(line_no)
+        # check if there is any line number
+        if line_nos:
             # find the smallest line number, then set it
-            min_line_no = min(line_no if line_no else 1145141919810 for _, _, _, line_no in insts)
+            min_line_no = min(line_nos)
             block2_first_inst = patcher.code.instructions[recalc_idx(history, finally_info.obj.block2.start)]
             patcher.code.co_lnotab[block2_first_inst.offset] = min_line_no
-        except ValueError:
-            # no line number
-            pass
         # fix everything in scope or block2
         if finally_info.scope_children:
             children.extend(finally_info.scope_children)
