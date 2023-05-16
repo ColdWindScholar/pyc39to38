@@ -206,6 +206,9 @@ def parse_finally_info(finally_objs: List[_Finally], sort: bool = True) -> List[
     """
     parse hierarchy information for given "finally" objects
     """
+    if not finally_objs:
+        return []
+
     if sort:
         # sort the "finally" objects by start position
         finally_objs.sort(key=lambda x: x.setup_finally)
