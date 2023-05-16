@@ -35,7 +35,7 @@ from . import PY38_VER
 # no return value
 RULE_APPLIER = [[InPlacePatcher, bool], None]
 
-# history
+# idx, add/removed count
 HISTORY = List[Tuple[int, int]]
 
 # mapping of opname to (compare op arg, extra_opname)
@@ -111,6 +111,5 @@ def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     # unless you want to recalc all the indexes
     finally_objs = scan_finally(patcher)
     finally_infos = parse_finally_info(finally_objs)
-    # idx, add/removed count
     history: HISTORY = []
     do_38_to_39_finally(patcher, is_pypy, opc, history, finally_infos)
