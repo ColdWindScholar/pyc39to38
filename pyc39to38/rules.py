@@ -23,13 +23,20 @@ from .insts import (
     remove_insts,
     insert_inst
 )
-from .scan import scan_finally
+from .scan import (
+    scan_finally,
+    parse_finally_info,
+    FinallyInfo
+)
 from . import PY38_VER
 
 
 # args: (patcher, is_pypy)
 # no return value
 RULE_APPLIER = [[InPlacePatcher, bool], None]
+
+# history
+HISTORY = List[Tuple[int, int]]
 
 # mapping of opname to (compare op arg, extra_opname)
 COMPARE_OPS: Dict[str, Tuple[int, str]] = {
@@ -54,6 +61,42 @@ def reraise_callback(opc: ModuleType, inst: Instruction) -> Instruction:
     return build_inst(opc, END_FINALLY, inst.arg)
 
 
+def do_38_to_39_finally(patcher: InPlacePatcher, is_pypy: bool, opc: ModuleType,
+                        history: HISTORY, finally_infos: List[FinallyInfo]):
+    """
+    fix finally blocks for 3.8 bytecode
+    """
+    children = []
+
+    for finally_info in finally_infos:
+        # remove block1 and jump_forward
+        count = finally_info.obj.block1.length + 1
+        insts = remove_insts(patcher, recalc_idx(history, finally_info.obj.block1.start), count)
+        history.append((finally_info.obj.block1.start, -count))
+        # add BEGIN_FINALLY at there
+        inst = build_inst(opc, BEGIN_FINALLY, None)
+        insert_inst(patcher, patcher.opc, recalc_idx(history, finally_info.obj.block1.start), inst, None, True)
+        history.append((finally_info.obj.block1.start, 1))
+        # restore line number if any
+        try:
+            # find the smallest line number, then set it
+            min_line_no = min(line_no if line_no else 1145141919810 for _, _, _, line_no in insts)
+            block2_first_inst = patcher.code.instructions[recalc_idx(history, finally_info.obj.block2.start)]
+            patcher.code.co_lnotab[block2_first_inst.offset] = min_line_no
+        except ValueError:
+            # no line number
+            pass
+        # fix everything in scope or block2
+        if finally_info.scope_children:
+            children.extend(finally_info.scope_children)
+        if finally_info.block2_children:
+            children.extend(finally_info.block2_children)
+
+    # recursively fix children
+    if children:
+        do_38_to_39_finally(patcher, is_pypy, opc, history, children)
+
+
 def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     """
     apply patches for adapting 3.9 bytecode to 3.8
@@ -65,23 +108,7 @@ def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     # do this at last, because it may introduce some messes
     # unless you want to recalc all the indexes
     finally_objs = scan_finally(patcher)
+    finally_infos = parse_finally_info(finally_objs)
     # idx, add/removed count
-    history: List[Tuple[int, int]] = []
-    for finally_obj in finally_objs:
-        # remove block1 and jump_forward
-        count = finally_obj.block1.length + 1
-        insts = remove_insts(patcher, recalc_idx(history, finally_obj.block1.start), count)
-        history.append((finally_obj.block1.start, -count))
-        # add BEGIN_FINALLY at there
-        inst = build_inst(opc, BEGIN_FINALLY, None)
-        insert_inst(patcher, opc, recalc_idx(history, finally_obj.block1.start), inst, None, True)
-        history.append((finally_obj.block1.start, 1))
-        # restore line number if any
-        try:
-            # find the smallest line number, then set it
-            min_line_no = min(line_no if line_no else 1145141919810 for _, _, _, line_no in insts)
-            block2_first_inst = patcher.code.instructions[recalc_idx(history, finally_obj.block2.start)]
-            patcher.code.co_lnotab[block2_first_inst.offset] = min_line_no
-        except ValueError:
-            # no line number
-            pass
+    history: HISTORY = []
+    do_38_to_39_finally(patcher, is_pypy, opc, history, finally_infos)

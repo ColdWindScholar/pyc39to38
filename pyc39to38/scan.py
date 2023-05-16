@@ -4,7 +4,8 @@ scanning
 
 from typing import (
     Optional,
-    List
+    List,
+    TypeVar
 )
 
 from .patch import InPlacePatcher
@@ -41,7 +42,7 @@ class FinallyBlock(Scope):
     pass
 
 
-class Finally:
+class _Finally:
     """
     info of a "finally" structure
     """
@@ -58,13 +59,25 @@ class Finally:
 
     def __repr__(self) -> str:
         return (
-            f'Finally(start={self.setup_finally}, pop_block={self.pop_block}, \n'
+            f'_Finally(start={self.setup_finally}, pop_block={self.pop_block}, \n'
             f'    scope={self.scope}, block1={self.block1}, jump_forward={self.jump_forward}, \n'
             f'    block2={self.block2}, end_finally={self.end_finally})\n'
         )
 
 
-def scan_finally(patcher: InPlacePatcher) -> List[Finally]:
+_FinallyInfo = TypeVar('_FinallyInfo', bound='FinallyInfo')
+
+
+class FinallyInfo:
+    def __init__(self, obj: _Finally, scope_children: List[_FinallyInfo], block1_children: List[_FinallyInfo],
+                 block2_children: List[_FinallyInfo]):
+        self.obj = obj
+        self.scope_children = scope_children
+        self.block1_children = block1_children
+        self.block2_children = block2_children
+
+
+def scan_finally(patcher: InPlacePatcher) -> List[_Finally]:
     """
     scan "finally" structures
 
@@ -81,8 +94,8 @@ def scan_finally(patcher: InPlacePatcher) -> List[Finally]:
     # find the scope of each "finally" block
     for i, inst in enumerate(patcher.code.instructions):
         if inst.opname == SETUP_FINALLY:  # the start of a "finally" block
-            finally_obj = Finally(i, UNCONFIRMED, UNINITED, UNINITED,
-                                  UNCONFIRMED, UNINITED, UNCONFIRMED)
+            finally_obj = _Finally(i, UNCONFIRMED, UNINITED, UNINITED,
+                                   UNCONFIRMED, UNINITED, UNCONFIRMED)
             # dereference the label and find the first instruction of the "finally" block2
             block2_first_inst_offset = patcher.label[inst.arg]
             block2_first_inst = find_inst(patcher.code.instructions, block2_first_inst_offset)
@@ -187,3 +200,59 @@ def scan_finally(patcher: InPlacePatcher) -> List[Finally]:
         finally_objs.pop(i)
 
     return finally_objs
+
+
+def parse_finally_info(finally_objs: List[_Finally], sort: bool = True) -> List[FinallyInfo]:
+    """
+    parse hierarchy information for given "finally" objects
+    """
+    if sort:
+        # sort the "finally" objects by start position
+        finally_objs.sort(key=lambda x: x.setup_finally)
+
+    # the first "finally" object is definitely one of the root "finally" objects
+    one_root_obj = finally_objs.pop(0)
+
+    # let's see what are the children of the first "finally" object
+    scope_children_obj = []
+    block1_children_obj = []
+    block2_children_obj = []
+    remove = []
+
+    # iterate through the rest of the "finally" objects
+    for i, finally_obj in enumerate(finally_objs):
+        # if this "finally" object is a "scope" child of the root "finally" object
+        if one_root_obj.scope.start <= finally_obj.setup_finally <= one_root_obj.scope.end:
+            scope_children_obj.append(finally_obj)
+        # if this "finally" object is a "block1" child of the root "finally" object
+        elif one_root_obj.block1.start <= finally_obj.setup_finally <= one_root_obj.block1.end:
+            block1_children_obj.append(finally_obj)
+        # if this "finally" object is a "block2" child of the root "finally" object
+        elif one_root_obj.block2.start <= finally_obj.setup_finally <= one_root_obj.block2.end:
+            block2_children_obj.append(finally_obj)
+        else:
+            continue
+        # remove it from the list if it's a child
+        remove.append(i)
+
+    # remove those are children
+    for i in reversed(remove):
+        finally_objs.pop(i)
+
+    # recursively parse the children
+    one_root_info = FinallyInfo(
+        obj=one_root_obj,
+        scope_children=parse_finally_info(scope_children_obj, sort=False) if scope_children_obj else [],
+        block1_children=parse_finally_info(block1_children_obj, sort=False) if block1_children_obj else [],
+        block2_children=parse_finally_info(block2_children_obj, sort=False) if block2_children_obj else []
+    )
+
+    # result
+    finally_infos = [one_root_info]
+
+    # if there's still "finally" objects left, it means there's more than one root "finally" object
+    if finally_objs:
+        # recursively parse the next root "finally" object as well as its children
+        finally_infos.extend(parse_finally_info(finally_objs, sort=False))
+
+    return finally_infos
