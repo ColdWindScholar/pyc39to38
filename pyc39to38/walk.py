@@ -94,11 +94,12 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
             if inst.opname == EXTENDED_ARG:
                 remove.append(inst_idx)
         for inst_idx in remove:
-            _, _, label, line_no = patcher.pop_inst(recalc_idx(pre_history, inst_idx))
+            idx = recalc_idx(pre_history, inst_idx)
+            _, _, label, line_no = patcher.pop_inst(idx)
             pre_history.append((inst_idx, -1))
-            removed.append((inst_idx, label, line_no))
+            removed.append((idx, label, line_no))
         for removed_inst_idx, label, line_no in removed:
-            next_inst = patcher.code.instructions[recalc_idx(pre_history, removed_inst_idx + 1)]
+            next_inst = patcher.code.instructions[removed_inst_idx]
             # if the removed inst has a label, we need some extra handling
             if label:
                 # if next inst has label, we need to redirect all reference of the original label to it
@@ -126,41 +127,48 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
             return None
 
         # add back the EXTENDED_ARG where needed
-        post_history: HISTORY = []
-        add: List[Tuple[int, int]] = []
-
-        for inst_idx, inst in enumerate(patcher.code.instructions):
-            if patcher.need_backpatch(inst):
-                # this inst has a label as arg
-                # deref the label
-                label_off = patcher.label[inst.arg]
-                # calculate the real arg
-                if inst.opcode in opc.JREL_OPS:
-                    arg = label_off - inst.offset - op_size(inst.opcode, opc)
-                elif inst.opcode in opc.JABS_OPS:
-                    arg = label_off
-                else:
-                    raise ValueError(f'unsupported jump opcode {inst.opname} at idx {inst_idx} in code #{code_idx}')
-                # if the arg is bigger than one byte, we need to add EXTENDED_ARG
-                # the arg for EXTENDED_ARG is how many extra bytes we need to extend
-                if arg > 255:
-                    # we need to add EXTENDED_ARG
+        while True:
+            post_history: HISTORY = []
+            dirty_insert = False
+            for inst_idx, inst in enumerate(patcher.code.instructions.copy()):
+                if patcher.need_backpatch(inst):
+                    # this inst has a label as arg
+                    # deref the label
+                    label_off = patcher.label[inst.arg]
+                    # recalc the idx
                     idx = recalc_idx(post_history, inst_idx)
-                    add.append((idx, arg // 256))
-
-        for idx, arg in add:
-            size = op_size(opc.opmap[EXTENDED_ARG], opc)
-            extended_arg_inst = build_inst(patcher.opc, EXTENDED_ARG, arg)
-            patcher.insert_inst(extended_arg_inst, size, idx)
-            post_history.append((idx, 1))
-            # if the next inst has a label, move it to here
-            next_inst = patcher.code.instructions[recalc_idx(post_history, idx + 1)]
-            # iterate all labels
-            for iterating_label, label_off in patcher.label.items():
-                if label_off == next_inst.offset:
-                    # set the offset to this inst
-                    patcher.label[iterating_label] = extended_arg_inst.offset
-                    break
+                    # calculate the real arg
+                    if inst.opcode in opc.JREL_OPS:
+                        arg = label_off - inst.offset - op_size(inst.opcode, opc)
+                    elif inst.opcode in opc.JABS_OPS:
+                        arg = label_off
+                    else:
+                        raise ValueError(f'unsupported jump opcode {inst.opname} at idx {idx} in code #{code_idx}')
+                    # if the arg is bigger than one byte, we need to add EXTENDED_ARG
+                    # the arg for EXTENDED_ARG is how many extra bytes we need to extend
+                    if arg > 255:
+                        # check if we already have an EXTENDED_ARG on top
+                        last_inst = patcher.code.instructions[idx - 1]
+                        if last_inst.opname == EXTENDED_ARG:
+                            # this is after the first run, we need to update the arg
+                            last_inst.arg = arg // 256
+                        else:
+                            # we need to add EXTENDED_ARG
+                            size = op_size(opc.opmap[EXTENDED_ARG], opc)
+                            extended_arg_inst = build_inst(patcher.opc, EXTENDED_ARG, arg // 256)
+                            patcher.insert_inst(extended_arg_inst, size, idx)
+                            dirty_insert = True
+                            post_history.append((inst_idx, 1))
+                            # if the next inst has a label, move it to here
+                            next_inst = patcher.code.instructions[idx + 1]
+                            # iterate all labels
+                            for iterating_label, label_off in patcher.label.items():
+                                if label_off == next_inst.offset:
+                                    # set the offset to this inst
+                                    patcher.label[iterating_label] = extended_arg_inst.offset
+                                    break
+            if not dirty_insert:
+                break
 
         try:
             # messes are done, fix the stuffs xDD
