@@ -8,8 +8,6 @@ from traceback import print_exc
 from typing import (
     Optional,
     Set,
-    List,
-    Tuple,
     Dict
 )
 from logging import getLogger
@@ -25,8 +23,6 @@ from xdis.codetype.base import iscode
 
 from .utils import (
     Instruction,
-    HISTORY,
-    recalc_idx,
     build_inst
 )
 from .patch import InPlacePatcher
@@ -86,38 +82,29 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
         patcher = InPlacePatcher(opc, new_code, new_label, new_backpatch_inst)
 
         # before applying the patches, we need to remove EXTENDED_ARG
-        pre_history: HISTORY = []
-        # idx, label, line_no
-        remove: List[int] = []
-        removed: List[Tuple[int, str, int]] = []
-        for inst_idx, inst in enumerate(patcher.code.instructions):
+        for inst_idx in range(len(patcher.code.instructions) - 1, -1, -1):
+            inst = patcher.code.instructions[inst_idx]
             if inst.opname == EXTENDED_ARG:
-                remove.append(inst_idx)
-        for inst_idx in remove:
-            idx = recalc_idx(pre_history, inst_idx)
-            _, _, label, line_no = patcher.pop_inst(idx)
-            pre_history.append((inst_idx, -1))
-            removed.append((idx, label, line_no))
-        for removed_inst_idx, label, line_no in removed:
-            next_inst = patcher.code.instructions[removed_inst_idx]
-            # if the removed inst has a label, we need some extra handling
-            if label:
-                # if next inst has label, we need to redirect all reference of the original label to it
-                for iterating_label, label_off in patcher.label.items():
-                    if label_off == next_inst.offset:
-                        # replace all reference of the original label to the label of next inst
-                        for inst in patcher.code.instructions:
-                            if patcher.need_backpatch(inst):
-                                # this inst has a label as arg
-                                if inst.arg == label:
-                                    inst.arg = iterating_label
-                        break
-                else:
-                    # no label found for next inst, just add the original label back to there
-                    patcher.label[label] = next_inst.offset
-            # restore the line number if needed
-            if line_no:
-                patcher.code.co_lnotab[next_inst.offset] = line_no
+                _, _, label, line_no = patcher.pop_inst(inst_idx)
+                next_inst = patcher.code.instructions[inst_idx]
+                # if the removed inst has a label, we need some extra handling
+                if label:
+                    # if next inst has label, we need to redirect all reference of the original label to it
+                    for iterating_label, label_off in patcher.label.items():
+                        if label_off == next_inst.offset:
+                            # replace all reference of the original label to the label of next inst
+                            for inst in patcher.code.instructions:
+                                if patcher.need_backpatch(inst):
+                                    # this inst has a label as arg
+                                    if inst.arg == label:
+                                        inst.arg = iterating_label
+                            break
+                    else:
+                        # no label found for next inst, just add the original label back to there
+                        patcher.label[label] = next_inst.offset
+                # restore the line number if needed
+                if line_no:
+                    patcher.code.co_lnotab[next_inst.offset] = line_no
 
         try:
             rule_applier(patcher, is_pypy)
@@ -128,45 +115,44 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
 
         # add back the EXTENDED_ARG where needed
         while True:
-            post_history: HISTORY = []
             dirty_insert = False
-            for inst_idx, inst in enumerate(patcher.code.instructions.copy()):
+            for inst_idx, inst in enumerate(patcher.code.instructions):
                 if patcher.need_backpatch(inst):
                     # this inst has a label as arg
                     # deref the label
                     label_off = patcher.label[inst.arg]
-                    # recalc the idx
-                    idx = recalc_idx(post_history, inst_idx)
                     # calculate the real arg
                     if inst.opcode in opc.JREL_OPS:
                         arg = label_off - inst.offset - op_size(inst.opcode, opc)
                     elif inst.opcode in opc.JABS_OPS:
                         arg = label_off
                     else:
-                        raise ValueError(f'unsupported jump opcode {inst.opname} at idx {idx} in code #{code_idx}')
+                        raise ValueError(f'unsupported jump opcode {inst.opname} at idx {inst_idx} in code #{code_idx}')
                     # if the arg is bigger than one byte, we need to add EXTENDED_ARG
                     # the arg for EXTENDED_ARG is how many extra bytes we need to extend
                     if arg > 255:
                         # check if we already have an EXTENDED_ARG on top
-                        last_inst = patcher.code.instructions[idx - 1]
-                        if last_inst.opname == EXTENDED_ARG:
+                        if inst_idx > 0 and (
+                                last_inst := patcher.code.instructions[inst_idx - 1]
+                        ).opname == EXTENDED_ARG:
                             # this is after the first run, we need to update the arg
                             last_inst.arg = arg // 256
                         else:
                             # we need to add EXTENDED_ARG
                             size = op_size(opc.opmap[EXTENDED_ARG], opc)
                             extended_arg_inst = build_inst(patcher.opc, EXTENDED_ARG, arg // 256)
-                            patcher.insert_inst(extended_arg_inst, size, idx)
+                            # get the next inst
+                            next_inst = patcher.code.instructions[inst_idx]
+                            patcher.insert_inst(extended_arg_inst, size, inst_idx)
                             dirty_insert = True
-                            post_history.append((inst_idx, 1))
-                            # if the next inst has a label, move it to here
-                            next_inst = patcher.code.instructions[idx + 1]
+                            # if the next inst has a label, just set it to here
                             # iterate all labels
                             for iterating_label, label_off in patcher.label.items():
                                 if label_off == next_inst.offset:
                                     # set the offset to this inst
                                     patcher.label[iterating_label] = extended_arg_inst.offset
                                     break
+                            break
             if not dirty_insert:
                 break
 
