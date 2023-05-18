@@ -168,10 +168,15 @@ class InPlacePatcher:
         old_inst2label = self.get_inst2label(idx)
 
         # first calc offset for the inserting instruction
-        last_inst = self.code.instructions[idx - 1]
-        last_offset = last_inst.offset
-        last_size = op_size(last_inst.opcode, self.opc)
-        offset = last_offset + last_size
+        if idx < 0:
+            raise ValueError('idx must be >= 0')
+        elif idx == 0:
+            offset = 0
+        else:
+            last_inst = self.code.instructions[idx - 1]
+            last_offset = last_inst.offset
+            last_size = op_size(last_inst.opcode, self.opc)
+            offset = last_offset + last_size
         inst.offset = offset
 
         self.code.instructions.insert(idx, inst)
