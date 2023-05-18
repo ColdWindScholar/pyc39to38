@@ -2,7 +2,7 @@
 pyc39to38
 """
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 LOG_CFG = '[%(asctime)s %(filename)s:%(lineno)d] %(name)s: %(levelname)s: %(message)s'
 
