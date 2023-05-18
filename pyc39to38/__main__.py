@@ -27,6 +27,7 @@ from . import (
 )
 from .asm import reasm_file
 from .rules import do_39_to_38
+from .cfg import Config
 
 
 basicConfig(level=INFO, format=LOG_CFG)
@@ -45,6 +46,8 @@ if __name__ == '__main__':
     parser.add_argument('output_pyc', type=str, help='output bytecode file')
     parser.add_argument('-f', '--force', action='store_true', help='overwrite the existing output file')
     parser.add_argument('-V', '--version', action='version', version=__version__)
+    parser.add_argument('--preserve-lineno-after-extarg', action='store_true',
+                        help='preserve the state that the lineno is sometimes after EXTENDED_ARG')
     args = parser.parse_args()
     input_pyc, output_pyc, force = args.input_pyc, args.output_pyc, args.force
 
@@ -64,7 +67,10 @@ if __name__ == '__main__':
     if stat(input_pyc).st_size < MIN_PYC_SIZE:
         die('input file %r is too small to be a valid bytecode file' % input_pyc)
 
-    if reasm_file(input_pyc, output_pyc, do_39_to_38):
+    cfg = Config()
+    cfg.preserve_lineno_after_extarg = args.preserve_lineno_after_extarg
+
+    if reasm_file(input_pyc, output_pyc, cfg, do_39_to_38):
         logger.info('done')
     else:
         logger.error('conversion failed')

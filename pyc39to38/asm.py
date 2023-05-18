@@ -25,6 +25,7 @@ from xasm.write_pyc import write_pycfile
 from .utils import rm_suffix
 from .walk import walk_codes
 from .rules import RULE_APPLIER
+from .cfg import Config
 from . import (
     FILE_ENCODING,
     PYASM_SUFFIX,
@@ -39,12 +40,13 @@ SOURCE_SIZE_OFF = 12
 SOURCE_SIZE_FMT = '<I'
 
 
-def reasm_file(input_path: str, output_path: str, rule_applier: RULE_APPLIER) -> bool:
+def reasm_file(input_path: str, output_path: str, cfg: Config, rule_applier: RULE_APPLIER) -> bool:
     """
     reassemble a Python bytecode file
 
     :param input_path: input file path
     :param output_path: output file path
+    :param cfg: config options
     :param rule_applier: rule applier
     :return: True if success, False if failed
     """
@@ -78,7 +80,7 @@ def reasm_file(input_path: str, output_path: str, rule_applier: RULE_APPLIER) ->
             unlink(tmp_asm.name)  # anyway, we are removing it here, seems OK
 
     opc = get_opcode(version, is_pypy)
-    if (new_asm := walk_codes(opc, asm, is_pypy, rule_applier)) is None:
+    if (new_asm := walk_codes(opc, asm, is_pypy, cfg, rule_applier)) is None:
         logger.error('failed to walk through the codes, aborting')
         return False
 

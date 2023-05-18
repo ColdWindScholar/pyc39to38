@@ -30,6 +30,7 @@ from .utils import (
 )
 from .patch import InPlacePatcher
 from .rules import RULE_APPLIER
+from .cfg import Config
 from . import PY38_VER
 
 
@@ -38,13 +39,15 @@ logger = getLogger('walk')
 EXTENDED_ARG = 'EXTENDED_ARG'
 
 
-def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RULE_APPLIER) -> Optional[Assembler]:
+def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool,
+               cfg: Config, rule_applier: RULE_APPLIER) -> Optional[Assembler]:
     """
     Walk through the codes and downgrade them
 
     :param opc: opcode map (it's a module ig)
     :param asm: input Assembler
     :param is_pypy: set if is PyPy
+    :param cfg: config options
     :param rule_applier: rule applier
     :return: output Assembler, None if failed
     """
@@ -78,6 +81,7 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
         patcher = InPlacePatcher(opc, new_code, new_label, new_backpatch_inst)
 
         # before applying the patches, we need to remove EXTENDED_ARG
+        shift_on_add_extarg: Set[Instruction] = set()
         for inst_idx in range(len(patcher.code.instructions) - 1, -1, -1):
             inst = patcher.code.instructions[inst_idx]
             if inst.opname == EXTENDED_ARG:
@@ -101,6 +105,12 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
                 # restore the line number if needed
                 if line_no:
                     patcher.code.co_lnotab[next_inst.offset] = line_no
+                else:
+                    # see if the next inst has a line number
+                    if next_inst.offset in patcher.code.co_lnotab:
+                        # we may want to shift the line number if we are going to re-add EXTENDED_ARG
+                        if cfg.preserve_lineno_after_extarg:
+                            shift_on_add_extarg.add(next_inst)
 
         try:
             rule_applier(patcher, is_pypy)
@@ -139,7 +149,11 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
                             extended_arg_inst = build_inst(patcher.opc, EXTENDED_ARG, arg // 256)
                             # get the next inst
                             next_inst = patcher.code.instructions[inst_idx]
-                            patcher.insert_inst(extended_arg_inst, size, inst_idx)
+                            if cfg.preserve_lineno_after_extarg:
+                                shift_on_add = next_inst in shift_on_add_extarg
+                            else:
+                                shift_on_add = False
+                            patcher.insert_inst(extended_arg_inst, size, inst_idx, None, shift_on_add)
                             dirty_insert = True
                             # if the next inst has a label, just set it to here
                             # iterate all labels
