@@ -25,7 +25,8 @@ from xdis.codetype.base import iscode
 
 from .utils import (
     Instruction,
-    build_inst
+    build_inst,
+    genlinestarts
 )
 from .patch import InPlacePatcher
 from .rules import RULE_APPLIER
@@ -168,9 +169,24 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
                 else:
                     logger.error(f'missing method \'{const.co_name}\' in code #{code_idx}')
                     return None
+
+        # backup the lnotab for the following hack
+        lnotab_backup = new_code.co_lnotab
+
         # this assembles the instructions and writes the code.co_code
         # after that it also freezes the code object
         co = create_code(new_asm, patcher.label, patcher.backpatch_inst)
+
+        # rollback the lnotab for the hack
+        co.co_lnotab = lnotab_backup
+        try:
+            # HACK: xasm has a bug encoding lnotab with big numbers and negative line number increments
+            #       use our own lnotab encoder here to fix it
+            co.co_lnotab = genlinestarts(co)
+        except ValueError:
+            logger.error(f'failed to fix the line number table for code #{code_idx}:')
+            print_exc()
+            return None
         # register the method name
         methods[co.co_name] = co
         # append data to lists, also backup the code

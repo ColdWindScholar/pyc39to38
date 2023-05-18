@@ -13,6 +13,7 @@ from typing import (
     Dict
 )
 from types import ModuleType
+from xdis.codetype.code38 import Code38
 
 from xasm.assemble import Instruction as InstructionStub
 from xdis.instruction import Instruction as RealInstruction
@@ -86,3 +87,51 @@ def find_lino_no(lnotab: Dict[int, int], offset: int) -> int:
         if offset >= off and (next_off is None or offset < next_off):
             return lnotab[off]
     return -1
+
+
+def genlinestarts(code: Code38) -> bytes:
+    """
+    HACK: Generate line-number table by the given code object
+
+    because xasm's behavior is strange, so I am doing this
+
+    :raises ValueError: if the line-number info in code object is invalid
+    """
+    lnotab: Union[bytes, Dict[int, int]] = code.co_lnotab
+    if isinstance(lnotab, bytes):
+        # We already have a line-number table
+        return lnotab
+    elif len(lnotab) == 1:
+        if lnotab[0] != code.co_firstlineno:
+            raise ValueError('Invalid lnotab or firstlineno')
+        else:
+            return b''
+    else:
+        out = bytearray()
+        lnotab_items: List[Tuple[int, int]] = sorted(lnotab.items(), key=lambda x: x[0])
+        last_offset = 0
+        last_lineno = code.co_firstlineno
+        for idx, (offset, lineno) in enumerate(lnotab_items):
+            if idx == 0:
+                if offset != 0 or lineno != code.co_firstlineno:
+                    raise ValueError('Invalid lnotab or firstlineno')
+            else:
+                offset_inc = offset - last_offset
+                lineno_inc = lineno - last_lineno
+                if offset_inc > 127:
+                    raise ValueError(f'Too long gap between two line numbers (idx={idx})')
+                else:
+                    out.append(offset_inc)
+                    # ref: https://towardsdatascience.com/understanding-python-bytecode-e7edaae8734d
+                    neg_lineno_inc = lineno_inc < 0
+                    while lineno_inc < -128 if neg_lineno_inc else lineno_inc > 127:
+                        out.append(255 if neg_lineno_inc else 127)
+                        out.append(0)
+                        if neg_lineno_inc:
+                            lineno_inc += 128
+                        else:
+                            lineno_inc -= 127
+                    out.append(256 + lineno_inc if neg_lineno_inc else lineno_inc)
+            last_offset = offset
+            last_lineno = lineno
+        return bytes(out)
