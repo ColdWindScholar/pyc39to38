@@ -101,11 +101,9 @@ def genlinestarts(code: Code38) -> bytes:
     if isinstance(lnotab, bytes):
         # We already have a line-number table
         return lnotab
-    elif len(lnotab) == 1:
-        if lnotab[0] != code.co_firstlineno:
-            raise ValueError('Invalid lnotab or firstlineno')
-        else:
-            return b''
+    elif len(lnotab) == 1 and lnotab[0] == code.co_firstlineno:
+        # no firstlineno mismatch, the lnotab should be empty
+        return b''
     else:
         out = bytearray()
         lnotab_items: List[Tuple[int, int]] = sorted(lnotab.items(), key=lambda x: x[0])
@@ -114,24 +112,29 @@ def genlinestarts(code: Code38) -> bytes:
         for idx, (offset, lineno) in enumerate(lnotab_items):
             if idx == 0:
                 if offset != 0 or lineno != code.co_firstlineno:
-                    raise ValueError('Invalid lnotab or firstlineno')
+                    # firstlineno mismatched, need to add some entries to correct it
+                    offset_inc = 0
+                    lineno_inc = lineno - code.co_firstlineno
+                else:
+                    # no firstlineno mismatch, no need to correct at offset 0
+                    continue
             else:
                 offset_inc = offset - last_offset
                 lineno_inc = lineno - last_lineno
-                if offset_inc > 127:
-                    raise ValueError(f'Too long gap between two line numbers (idx={idx})')
-                else:
-                    out.append(offset_inc)
-                    # ref: https://towardsdatascience.com/understanding-python-bytecode-e7edaae8734d
-                    neg_lineno_inc = lineno_inc < 0
-                    while lineno_inc < -128 if neg_lineno_inc else lineno_inc > 127:
-                        out.append(255 if neg_lineno_inc else 127)
-                        out.append(0)
-                        if neg_lineno_inc:
-                            lineno_inc += 128
-                        else:
-                            lineno_inc -= 127
-                    out.append(256 + lineno_inc if neg_lineno_inc else lineno_inc)
+            if offset_inc > 127:
+                raise ValueError(f'Too long gap between two line numbers (idx={idx})')
+            else:
+                out.append(offset_inc)
+                # ref: https://towardsdatascience.com/understanding-python-bytecode-e7edaae8734d
+                neg_lineno_inc = lineno_inc < 0
+                while lineno_inc < -128 if neg_lineno_inc else lineno_inc > 127:
+                    out.append(255 if neg_lineno_inc else 127)
+                    out.append(0)
+                    if neg_lineno_inc:
+                        lineno_inc += 128
+                    else:
+                        lineno_inc -= 127
+                out.append(256 + lineno_inc if neg_lineno_inc else lineno_inc)
             last_offset = offset
             last_lineno = lineno
         return bytes(out)
