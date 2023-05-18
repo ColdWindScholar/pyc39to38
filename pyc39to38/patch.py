@@ -228,28 +228,9 @@ class InPlacePatcher:
             if new != _label:
                 inst.arg = new
 
-    def fix_line_no(self):
-        """
-        fix line numbers
-        """
-        rest = self.code.instructions.copy()
-        rest.sort(key=lambda x: x.offset)
-        offs = sorted(self.code.co_lnotab.keys())
-        for i, off in enumerate(offs):
-            next_off = offs[i + 1] if i + 1 < len(offs) else None
-            for j, inst in enumerate(rest):
-                if inst.offset >= off and (next_off is None or inst.offset < next_off):
-                    inst.line_no = self.code.co_lnotab[off]
-                else:
-                    break
-            else:
-                break
-            rest = rest[j + 1:]
-
     def fix_all(self):
         """
         fix all
         """
         self.fix_backpatch()
         self.fix_label()
-        self.fix_line_no()
