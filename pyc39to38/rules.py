@@ -59,7 +59,7 @@ def reraise_callback(opc: ModuleType, inst: Instruction) -> Instruction:
     return build_inst(opc, END_FINALLY, inst.arg)
 
 
-def do_38_to_39_finally(patcher: InPlacePatcher, is_pypy: bool, opc: ModuleType,
+def do_38_to_39_finally(patcher: InPlacePatcher, opc: ModuleType,
                         history: HISTORY, finally_infos: List[FinallyInfo]):
     """
     fix finally blocks for 3.8 bytecode
@@ -94,7 +94,7 @@ def do_38_to_39_finally(patcher: InPlacePatcher, is_pypy: bool, opc: ModuleType,
 
     # recursively fix children
     if children:
-        do_38_to_39_finally(patcher, is_pypy, opc, history, children)
+        do_38_to_39_finally(patcher, opc, history, children)
 
 
 def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
@@ -107,6 +107,6 @@ def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     replace_op_with_inst(patcher, opc, RERAISE, reraise_callback)
     # do this at last if you could, because it may cause some big chunk of deletions
     do_38_to_39_finally(
-        patcher, is_pypy, opc, [],
+        patcher, opc, [],
         parse_finally_info(scan_finally(patcher))
     )
