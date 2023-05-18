@@ -14,10 +14,12 @@ from logging import getLogger
 
 from xasm.assemble import (
     Assembler,
-    create_code,
-    decode_lineno_tab
+    create_code
 )
-from xdis.cross_dis import op_size
+from xdis.cross_dis import (
+    op_size,
+    findlinestarts
+)
 from xdis.codetype.code38 import Code38
 from xdis.codetype.base import iscode
 
@@ -56,14 +58,7 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool, rule_applier: RUL
         new_label = copy(asm.label[code_idx])
         old_backpatch_inst = asm.backpatch[code_idx]
         new_backpatch_inst: Set[Instruction] = set()
-        if isinstance(old_code.co_lnotab, dict):
-            # co_lnotab is already decoded
-            new_code.co_lnotab = copy(old_code.co_lnotab)
-        else:
-            # co_lnotab is bytes, decode it
-            new_code.co_lnotab = decode_lineno_tab(
-                old_code.co_lnotab, old_code.co_firstlineno
-            )
+        new_code.co_lnotab = dict(findlinestarts(old_code))
         new_insts = []
         for old_inst in old_code.instructions:
             new_inst = copy(old_inst)
