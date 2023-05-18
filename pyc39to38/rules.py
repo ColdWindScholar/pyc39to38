@@ -105,9 +105,8 @@ def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     for op in COMPARE_OPS.keys():
         replace_op_with_insts(patcher, opc, op, compare_op_callback)
     replace_op_with_inst(patcher, opc, RERAISE, reraise_callback)
-    # do this at last, because it may introduce some messes
-    # unless you want to recalc all the indexes
-    finally_objs = scan_finally(patcher)
-    finally_infos = parse_finally_info(finally_objs)
-    history: HISTORY = []
-    do_38_to_39_finally(patcher, is_pypy, opc, history, finally_infos)
+    # do this at last if you could, because it may cause some big chunk of deletions
+    do_38_to_39_finally(
+        patcher, is_pypy, opc, [],
+        parse_finally_info(scan_finally(patcher))
+    )
