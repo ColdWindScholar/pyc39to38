@@ -8,6 +8,7 @@ from typing import (
     Dict,
     Tuple
 )
+from warnings import warn
 
 from xdis.disasm import get_opcode
 
@@ -103,11 +104,17 @@ def do_38_to_39_list_creation(patcher: InPlacePatcher, opc: ModuleType, records:
     history: HISTORY = []
     # the const of the original tuple, the first element of the expended tuple and the elements count
     const_map: Dict[int, Tuple[int, int]] = {}
+    warn_tuple = False
     for record in records:
         if record.const_idx not in const_map:
             orig_tuple = patcher.code.co_consts[record.const_idx]
             const_map[record.const_idx] = len(patcher.code.co_consts), len(orig_tuple)
             for elem in orig_tuple:
+                if isinstance(elem, tuple) and not warn_tuple:
+                    warn('uncompyle6 may has a bug that it may crash when tuples are in list constants.'
+                         'if so please make sure you apply this patch to it before decompiling: '
+                         'https://gist.github.com/ookiineko/bf87f5d52dcd983eaf9bd760436d70b2')
+                    warn_tuple = True
                 patcher.code.co_consts.append(elem)
         # delete the three instructions at the record
         insts = remove_insts(patcher, recalc_idx(history, record.pos), 3)
