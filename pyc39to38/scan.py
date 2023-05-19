@@ -19,6 +19,10 @@ JUMP_FORWARD = 'JUMP_FORWARD'
 JUMP_ABSOLUTE = 'JUMP_ABSOLUTE'
 END_FINALLY = 'END_FINALLY'
 
+BUILD_LIST = 'BUILD_LIST'
+LOAD_CONST = 'LOAD_CONST'
+LIST_EXTEND = 'LIST_EXTEND'
+
 UNCONFIRMED = -1
 UNINITED = None
 
@@ -260,3 +264,49 @@ def parse_finally_info(finally_objs: List[_Finally], sort: bool = True) -> List[
         finally_infos.extend(parse_finally_info(finally_objs, sort=False))
 
     return finally_infos
+
+
+class Py39ListFromTuple:
+    def __init__(self, pos: int, const_idx: int):
+        self.pos = pos
+        self.const_idx = const_idx
+
+    def __repr__(self) -> str:
+        return f'Py39ListFromTuple(pos={self.pos}, const_idx={self.const_idx})'
+
+
+def scan_py39_list_from_tuple(patcher: InPlacePatcher) -> List[Py39ListFromTuple]:
+    """
+    Scan for the following pattern:
+
+    BUILD_LIST           0
+    LOAD_CONST           <some tuple constant>
+    LIST_EXTEND          1
+    """
+    build_list = load_const = list_extend = False
+    pos = -1
+    const_idx = -1
+    result: List[Py39ListFromTuple] = []
+    for i, inst in enumerate(patcher.code.instructions):
+        if inst.opname == BUILD_LIST:
+            if build_list or inst.arg != 0:
+                build_list = load_const = list_extend = False
+            else:
+                build_list = True
+                pos = i
+        elif build_list and inst.opname == LOAD_CONST:
+            const = patcher.code.co_consts[inst.arg]
+            if load_const or not isinstance(const, tuple):
+                build_list = load_const = list_extend = False
+            else:
+                load_const = True
+                const_idx = inst.arg
+        elif build_list and load_const and inst.opname == LIST_EXTEND:
+            if list_extend or inst.arg != 1:
+                build_list = load_const = list_extend = False
+            else:
+                list_extend = True
+                result.append(Py39ListFromTuple(pos, const_idx))
+        else:
+            build_list = load_const = list_extend = False
+    return result

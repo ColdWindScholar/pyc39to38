@@ -15,6 +15,9 @@ This is a simple tool to convert Python 3.9 bytecode to 3.8.
   - [x] replace <finally block 1> and `JUMP_FORWARD` with `BEGIN_FINALLY`
 - [ ] compare ops
   - [x] replace `JUMP_IF_NOT_EXC_MATCH` with `COMPARE_OP 10` and `POP_JUMP_IF_FALSE`
+- [ ] list creation
+  - [x] replace `LIST_EXTEND 1` (followed by an empty list creation and a `LOAD_CONST <tuple>`) 
+        with multiple `LOAD_CONST` and `BUILD_LIST <tuple size>`
 
 ## Usage
 

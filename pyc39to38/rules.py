@@ -27,7 +27,9 @@ from .insts import (
 from .scan import (
     scan_finally,
     parse_finally_info,
-    FinallyInfo
+    FinallyInfo,
+    scan_py39_list_from_tuple,
+    Py39ListFromTuple
 )
 from . import PY38_VER
 
@@ -97,6 +99,30 @@ def do_38_to_39_finally(patcher: InPlacePatcher, opc: ModuleType,
         do_38_to_39_finally(patcher, opc, history, children)
 
 
+def do_38_to_39_list_creation(patcher: InPlacePatcher, opc: ModuleType, records: List[Py39ListFromTuple]):
+    history: HISTORY = []
+    # the const of the original tuple, the first element of the expended tuple and the elements count
+    const_map: Dict[int, Tuple[int, int]] = {}
+    for record in records:
+        if record.const_idx not in const_map:
+            orig_tuple = patcher.code.co_consts[record.const_idx]
+            const_map[record.const_idx] = len(patcher.code.co_consts), len(orig_tuple)
+            for elem in orig_tuple:
+                patcher.code.co_consts.append(elem)
+        # delete the three instructions at the record
+        insts = remove_insts(patcher, recalc_idx(history, record.pos), 3)
+        label, line_no = insts[0][2], insts[0][3]
+        first_elem, elem_count = const_map[record.const_idx]
+        for i in range(elem_count):
+            inst = build_inst(opc, 'LOAD_CONST', first_elem + i)
+            insert_inst(patcher, opc, recalc_idx(history, record.pos) + i, inst, label if i == 0 else None)
+            if i == 0 and line_no:
+                patcher.code.co_lnotab[inst.offset] = line_no
+        inst = build_inst(opc, 'BUILD_LIST', elem_count)
+        insert_inst(patcher, opc, recalc_idx(history, record.pos + elem_count), inst, label, True)
+        history.append((record.pos, -3 + elem_count + 1))
+
+
 def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     """
     apply patches for adapting 3.9 bytecode to 3.8
@@ -105,6 +131,7 @@ def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     for op in COMPARE_OPS.keys():
         replace_op_with_insts(patcher, opc, op, compare_op_callback)
     replace_op_with_inst(patcher, opc, RERAISE, reraise_callback)
+    do_38_to_39_list_creation(patcher, opc, scan_py39_list_from_tuple(patcher))
     # do this at last if you could, because it may cause some big chunk of deletions
     do_38_to_39_finally(
         patcher, opc, [],
