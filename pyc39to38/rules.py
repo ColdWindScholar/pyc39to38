@@ -32,12 +32,13 @@ from .scan import (
     scan_py39_list_from_tuple,
     Py39ListFromTuple
 )
+from .cfg import Config
 from . import PY38_VER
 
 
 # args: (patcher, is_pypy)
 # no return value
-RULE_APPLIER = [[InPlacePatcher, bool], None]
+RULE_APPLIER = [[InPlacePatcher, bool, Config], None]
 
 # mapping of opname to (compare op arg, extra_opname)
 COMPARE_OPS: Dict[str, Tuple[int, str]] = {
@@ -130,7 +131,7 @@ def do_38_to_39_list_creation(patcher: InPlacePatcher, opc: ModuleType, records:
         history.append((record.pos, -3 + elem_count + 1))
 
 
-def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
+def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool, cfg: Config):
     """
     apply patches for adapting 3.9 bytecode to 3.8
     """
@@ -140,7 +141,8 @@ def do_39_to_38(patcher: InPlacePatcher, is_pypy: bool):
     replace_op_with_inst(patcher, opc, RERAISE, reraise_callback)
     do_38_to_39_list_creation(patcher, opc, scan_py39_list_from_tuple(patcher))
     # do this at last if you could, because it may cause some big chunk of deletions
-    do_38_to_39_finally(
-        patcher, opc, [],
-        parse_finally_info(scan_finally(patcher))
-    )
+    if not cfg.no_begin_finally:
+        do_38_to_39_finally(
+            patcher, opc, [],
+            parse_finally_info(scan_finally(patcher))
+        )

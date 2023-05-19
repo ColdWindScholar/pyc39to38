@@ -48,6 +48,8 @@ if __name__ == '__main__':
     parser.add_argument('-V', '--version', action='version', version=__version__)
     parser.add_argument('--preserve-lineno-after-extarg', action='store_true',
                         help='preserve the state that the lineno is sometimes after EXTENDED_ARG')
+    parser.add_argument('--no-begin-finally', action='store_true',
+                        help='do not replace <finally block 1> and JUMP_FORWARD with BEGIN_FINALLY')
     args = parser.parse_args()
     input_pyc, output_pyc, force = args.input_pyc, args.output_pyc, args.force
 
@@ -69,6 +71,7 @@ if __name__ == '__main__':
 
     cfg = Config()
     cfg.preserve_lineno_after_extarg = args.preserve_lineno_after_extarg
+    cfg.no_begin_finally = args.no_begin_finally
 
     if reasm_file(input_pyc, output_pyc, cfg, do_39_to_38):
         logger.info('done')

@@ -113,7 +113,7 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool,
                             shift_on_add_extarg.add(next_inst)
 
         try:
-            rule_applier(patcher, is_pypy)
+            rule_applier(patcher, is_pypy, cfg)
         except (ValueError, TypeError):
             logger.error(f'failed to apply rules for code #{code_idx}:')
             print_exc()
