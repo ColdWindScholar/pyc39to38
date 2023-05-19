@@ -19,6 +19,11 @@ This is a simple tool to convert Python 3.9 bytecode to 3.8.
   - [x] replace `LIST_EXTEND 1` (followed by an empty list creation and a `LOAD_CONST <tuple>`) 
         with multiple `LOAD_CONST` and `BUILD_LIST <tuple size>`
 
+## BUGS
+
+- [ ] except with `else` block
+- [ ] except with `as` keyword
+
 ## Usage
 
 ```shell
