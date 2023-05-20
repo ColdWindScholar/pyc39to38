@@ -112,9 +112,10 @@ def do_38_to_39_list_creation(patcher: InPlacePatcher, opc: ModuleType, records:
             const_map[record.const_idx] = len(patcher.code.co_consts), len(orig_tuple)
             for elem in orig_tuple:
                 if isinstance(elem, tuple) and not warn_tuple:
-                    warn('uncompyle6 may has a bug that it may crash when tuples are in list constants.'
+                    warn('uncompyle6 may has a bug that it may crash when tuples are in list constants. '
                          'if so please make sure you apply this patch to it before decompiling: '
-                         'https://gist.github.com/ookiineko/bf87f5d52dcd983eaf9bd760436d70b2')
+                         'https://gist.github.com/ookiineko/bf87f5d52dcd983eaf9bd760436d70b2\n'
+                         'or simply use decompyle3 instead.')
                     warn_tuple = True
                 patcher.code.co_consts.append(elem)
         # delete the three instructions at the record
