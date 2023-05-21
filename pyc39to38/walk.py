@@ -8,7 +8,8 @@ from traceback import print_exc
 from typing import (
     Optional,
     Set,
-    Dict
+    Dict,
+    Callable
 )
 from logging import getLogger
 
@@ -22,6 +23,7 @@ from xdis.cross_dis import (
 )
 from xdis.codetype.code38 import Code38
 from xdis.codetype.base import iscode
+from xdis.version_info import PYTHON_VERSION_TRIPLE
 
 from .utils import (
     Instruction,
@@ -176,6 +178,9 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool,
 
         new_asm.code = new_code
         # fix the code objects in constants
+        const_is_tuple = isinstance(new_asm.code.co_consts, tuple)
+        if const_is_tuple:
+            new_asm.code.co_consts = list(new_asm.code.co_consts)
         for idx, const in enumerate(new_asm.code.co_consts):
             if iscode(const):
                 if const.co_name in methods:
@@ -183,9 +188,18 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool,
                 else:
                     logger.error(f'missing method \'{const.co_name}\' in code #{code_idx}')
                     return None
+        if const_is_tuple:
+            new_asm.code.co_consts = tuple(new_asm.code.co_consts)
 
         # backup the lnotab for the following hack
         lnotab_backup = new_code.co_lnotab
+
+        native_code = new_asm.python_version[:2] == PYTHON_VERSION_TRIPLE[:2]
+        old_to_native: Optional[Callable] = None
+
+        if native_code:
+            old_to_native = new_code.to_native
+            new_code.to_native = new_code.freeze
 
         # this assembles the instructions and writes the code.co_code
         # after that it also freezes the code object
@@ -201,6 +215,10 @@ def walk_codes(opc: ModuleType, asm: Assembler, is_pypy: bool,
             logger.error(f'failed to fix the line number table for code #{code_idx}:')
             print_exc()
             return None
+
+        if native_code:
+            old_to_native()
+
         # register the method name
         methods[co.co_name] = co
         # append data to lists, also backup the code
