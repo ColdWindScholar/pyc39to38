@@ -23,6 +23,7 @@ This is a simple tool to convert Python 3.9 bytecode to 3.8.
 
 - [ ] except with `else` block
 - [ ] except with `as` keyword
+- [ ] `return` statement in `finally` block
 
 ## Usage
 
